@@ -1,8 +1,7 @@
 from psychopy import visual, core, event, monitors
+from tetris_shape import tetris_shapes,tetris_color
 import numpy as np
-
-color_map = {0:'white',1:'red',2:'blue'}
-
+from numba import jit
 class Trtris_map:
     def __init__(self,
                  map_size = (10,20),win_shape = (800,800),
@@ -23,19 +22,88 @@ class Trtris_map:
                 rect.setPos((rect_cent_x,rect_cent_y))
                 new_col.append(rect)
             self.mat_render.append(new_col)
+
         self.gamespeed = 0.5
+        self.game_over = False
     
-    def game_step(self):
-        self.mat_iter()
+    @jit(parallel=True)
+    def graphic_step(self):
+        t_begin = core.getTime()
         for i in range(0,self.map_size[0]):
             for j in range(0,self.map_size[1]):
-                self.mat_render[i][j].setColor(color_map[self.mat_color[i,j]])
-                self.mat_render[i][j].draw()
+                if(self.mat_color[i,j] != 0):
+                    self.mat_render[i][j].setColor(tetris_color[self.mat_color[i,j]])
+                    self.mat_render[i][j].draw()
         self.win.flip()
-        core.wait(self.gamespeed)
+        print(core.getTime() - t_begin)
+        
+    def game_step(self):
+        self.mat_iter()
+        self.graphic_step()
+
+    def _get_falling_blocks(self):
+        falling_blocks_coord = np.where(self.mat_logic == 2)
+        falling_blocks = []
+        
+        for i in range(len(falling_blocks_coord[0])):
+            falling_blocks.append(np.array([p[i] for p in falling_blocks_coord]))
+        return falling_blocks
+
+    def block_slide(self,direction):
+        if(direction == 0):
+            return
+        
+        falling_blocks = self._get_falling_blocks()
+        x_min = 11
+        x_max = -1
+        for f_block in falling_blocks:
+            x_min = min(f_block[0],x_min)
+            x_max = max(f_block[0],x_max)
+        t_begin = core.getTime()
+        if x_max + direction < self.map_size[0] and x_min + direction >= 0:
+            color = self.mat_color[f_block[0],f_block[1]]
+            for f_block in falling_blocks:
+                self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
+            for f_block in falling_blocks:
+                self.mat_logic[f_block[0] + direction,f_block[1] ] = 2
+                self.mat_color[f_block[0] + direction,f_block[1]] = color
+            self.graphic_step()
+            print(t_begin - core.getTime())
+    
+
+    def block_rotate(self,direction):
+        pass
+
+    def main_thread(self):
+        self.block_spawn(1)
+        while not self.game_over:
+            t_begin = core.getTime()
+            while core.getTime() - t_begin < self.gamespeed:
+                slide_direction = 0
+                keys_pressed = event.getKeys()
+                if 'z' in keys_pressed:
+                    slide_direction -= 1
+                if 'x' in keys_pressed:
+                    slide_direction += 1
+                self.block_slide(slide_direction)
+
+
+                    
         
     
+    def block_spawn(self,shape_no):
+        new_blocks_mask = tetris_shapes[shape_no]
+        new_blocks_color = shape_no + 1
+        [new_width,new_height] = new_blocks_mask.shape
+        spawn_x = self.map_size[0] // 2 - new_width // 2
+
+        self.mat_logic[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = 2 * new_blocks_mask
+        self.mat_color[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = new_blocks_color * new_blocks_mask
+
+        self.graphic_step()
+    
     def mat_iter(self):
+
         def block_touchdown():
             falling_blocks = np.where(self.mat_logic == 2)
             self.mat_logic[falling_blocks] = 1
@@ -50,13 +118,8 @@ class Trtris_map:
                     self.mat_color[:,j:-1] = self.mat_color[:,j+1:]
                     rows_eliminated += 1
             return rows_eliminated
-            
-        falling_blocks_coord = np.where(self.mat_logic == 2)
-        falling_blocks = []
-        
-        for i in range(len(falling_blocks_coord[0])):
-            falling_blocks.append(np.array([p[i] for p in falling_blocks_coord]))
-        print(falling_blocks)
+        falling_blocks = self._get_falling_blocks()
+        # print(falling_blocks)
         if len(falling_blocks) > 0:
             # 检测碰撞
             for f_block in falling_blocks:
@@ -79,12 +142,11 @@ class Trtris_map:
 
 
 map = Trtris_map()
-for i in range(9):
-    map.mat_color[i,0] = 1
-    map.mat_logic[i,0] = 1
 
-map.mat_color[9,5] = 2
-map.mat_logic[9,5] = 2
+map.main_thread()
 
-for i in range(15):
-    map.game_step()
+
+# for j in range(7):
+#     map.block_spawn(j)
+#     for i in range(30):
+#         map.game_step()
