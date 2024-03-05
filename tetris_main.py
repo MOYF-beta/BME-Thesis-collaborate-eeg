@@ -3,6 +3,16 @@ from tetris_shape import tetris_shapes,tetris_color
 import numpy as np
 from numba import jit
 class Trtris_map:
+
+    def _generate_positions(self, map_size, rect_size, margin):
+        positions = []
+        for i in range(map_size[0]):
+            for j in range(map_size[1]):
+                x = margin + -1 + i * rect_size + 0.5 * rect_size
+                y = -1 + j * rect_size + 0.5 * rect_size
+                positions.append((x, y))
+        return positions
+
     def __init__(self,
                  map_size = (10,20),win_shape = (800,800),
                  game_zone_width = 0.7, margin = 0.1) -> None:
@@ -22,18 +32,25 @@ class Trtris_map:
                 rect.setPos((rect_cent_x,rect_cent_y))
                 new_col.append(rect)
             self.mat_render.append(new_col)
-
+        nElements = map_size[0] * map_size[1]
+        self.stim_array = visual.ElementArrayStim(win=self.win, 
+                                          nElements=nElements, 
+                                          elementTex=None, 
+                                          elementMask="rect", 
+                                          sizes=rect_size, 
+                                          xys=self._generate_positions(map_size, rect_size, margin), 
+                                          colors=[0,0,0])
         self.gamespeed = 0.5
         self.game_over = False
-    
-    @jit(parallel=True)
+
+
     def graphic_step(self):
         t_begin = core.getTime()
-        for i in range(0,self.map_size[0]):
-            for j in range(0,self.map_size[1]):
-                if(self.mat_color[i,j] != 0):
-                    self.mat_render[i][j].setColor(tetris_color[self.mat_color[i,j]])
-                    self.mat_render[i][j].draw()
+        # 更新颜色
+        colors = [tetris_color[self.mat_color[i, j]] for i in range(self.map_size[0]) for j in range(self.map_size[1])]
+        self.stim_array.colors = colors
+        # 绘制
+        self.stim_array.draw()
         self.win.flip()
         print(core.getTime() - t_begin)
         

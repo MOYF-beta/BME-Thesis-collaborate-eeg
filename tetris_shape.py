@@ -35,6 +35,16 @@ _tetris_shapes = [
         [1]
     ],
 ]
-tetris_color = {0:'white',1:'pink',2:'blue',3:'cyan',4:'green',5:'yellow',6:'purple',7:'red'}
+tetris_color = {
+    0: [1, 1, 1],    # white
+    1: [1, 0.753, 0.796],  # pink
+    2: [0, 0, 1],    # blue
+    3: [0, 1, 1],    # cyan
+    4: [0, 1, 0],    # green
+    5: [1, 1, 0],    # yellow
+    6: [0.627, 0.125, 0.941],  # purple
+    7: [1, 0, 0]     # red
+}
+
 
 tetris_shapes = [np.array(x,dtype=np.int8).T for x in _tetris_shapes]
