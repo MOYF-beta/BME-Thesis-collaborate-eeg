@@ -45,51 +45,72 @@ class Trtris_map:
 
 
     def graphic_step(self):
-        t_begin = core.getTime()
         # 更新颜色
-        colors = [tetris_color[self.mat_color[i, j]] for i in range(self.map_size[0]) for j in range(self.map_size[1])]
+        colors = [tetris_color[self.mat_color[i, j]] 
+                  for i in range(self.map_size[0]) 
+                  for j in range(self.map_size[1])]
         self.stim_array.colors = colors
         # 绘制
         self.stim_array.draw()
         self.win.flip()
-        print(core.getTime() - t_begin)
         
     def game_step(self):
         self.mat_iter()
         self.graphic_step()
 
-    def _get_falling_blocks(self):
+    def _get_falling_blocks(self, need_utils = False):
         falling_blocks_coord = np.where(self.mat_logic == 2)
         falling_blocks = []
         
         for i in range(len(falling_blocks_coord[0])):
             falling_blocks.append(np.array([p[i] for p in falling_blocks_coord]))
-        return falling_blocks
+        if not need_utils:
+            return falling_blocks
+        else:
+            x_min = self.map_size[0] + 1
+            y_min = self.map_size[1] + 1
+            x_max = -1
+            y_max = -1
+            for f_block in falling_blocks:
+                x_min = min(f_block[0],x_min)
+                x_max = max(f_block[0],x_max)
+                y_min = min(f_block[1],y_min)
+                y_max = max(f_block[1],y_max)
+            color = self.mat_color[f_block[0],f_block[1]]
+            return [falling_blocks,x_min,x_max,y_min,y_max,color]
 
     def block_slide(self,direction):
         if(direction == 0):
             return
         
-        falling_blocks = self._get_falling_blocks()
-        x_min = 11
-        x_max = -1
-        for f_block in falling_blocks:
-            x_min = min(f_block[0],x_min)
-            x_max = max(f_block[0],x_max)
-        t_begin = core.getTime()
+        [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
+        
         if x_max + direction < self.map_size[0] and x_min + direction >= 0:
-            color = self.mat_color[f_block[0],f_block[1]]
             for f_block in falling_blocks:
                 self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
             for f_block in falling_blocks:
                 self.mat_logic[f_block[0] + direction,f_block[1] ] = 2
                 self.mat_color[f_block[0] + direction,f_block[1]] = color
             self.graphic_step()
-            print(t_begin - core.getTime())
     
 
     def block_rotate(self,direction):
-        pass
+        if(direction == 0):
+            return
+        
+        [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
+        falling_mask_logic = np.rot90(self.mat_logic[x_min:x_max+1,y_min:y_max+1],direction).copy()
+        falling_mask_color = np.rot90(self.mat_color[x_min:x_max+1,y_min:y_max+1],direction).copy()
+
+        [w,h] = falling_mask_logic.shape
+        for f_block in falling_blocks:
+            self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
+
+        if not np.any(np.logical_and(falling_mask_logic == 2, self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] == 1)):
+            self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_logic
+            self.mat_color[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_color
+        self.graphic_step()
+
 
     def main_thread(self):
         self.block_spawn(1)
@@ -97,12 +118,21 @@ class Trtris_map:
             t_begin = core.getTime()
             while core.getTime() - t_begin < self.gamespeed:
                 slide_direction = 0
+                rotate_direction = 0
                 keys_pressed = event.getKeys()
+                # if(len(keys_pressed)>0):
+                #     print(keys_pressed)
                 if 'z' in keys_pressed:
                     slide_direction -= 1
                 if 'x' in keys_pressed:
                     slide_direction += 1
+                if 'comma' in keys_pressed:#<
+                    rotate_direction -= 1
+                if 'period' in keys_pressed:#>
+                    rotate_direction += 1
                 self.block_slide(slide_direction)
+                self.block_rotate(rotate_direction)
+            self.game_step()
 
 
                     
