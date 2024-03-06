@@ -42,6 +42,10 @@ class Trtris_map:
                                           colors=[0,0,0])
         self.gamespeed = 0.5
         self.game_over = False
+        self.pack_no = 0
+        self.pack = np.array(range(7),dtype=np.int8)
+        self.game_step_count = 0
+        self.spawn_flag = False
 
 
     def graphic_step(self):
@@ -53,10 +57,36 @@ class Trtris_map:
         # 绘制
         self.stim_array.draw()
         self.win.flip()
-        
+ 
     def game_step(self):
-        self.mat_iter()
+
+        def block_spawn(shape_no):
+            new_blocks_mask = tetris_shapes[shape_no]
+            new_blocks_color = shape_no + 1
+            [new_width,new_height] = new_blocks_mask.shape
+            spawn_x = self.map_size[0] // 2 - new_width // 2
+            if not np.any(np.logical_and(new_blocks_mask != 0,
+                                          self.mat_logic[spawn_x:spawn_x + new_width,
+                                                          self.map_size[1] - new_height:self.map_size[1]] != 0)):
+                self.mat_logic[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = 2 * new_blocks_mask
+                self.mat_color[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = new_blocks_color * new_blocks_mask
+                self.spawn_flag = True
+                self.graphic_step()
+            else:
+                self.game_over = True
+            self.pack_no += 1
+
+        def pack_spawn():
+            if self.pack_no >=7:
+                self.pack_no = 0
+                np.random.shuffle(self.pack)
+            block_spawn(self.pack[self.pack_no])
+        
+        [new_score,block_falled] = self.mat_iter()
+        if block_falled or self.game_step_count == 0:
+            pack_spawn()
         self.graphic_step()
+        self.game_step_count += 1
 
     def _get_falling_blocks(self, need_utils = False):
         falling_blocks_coord = np.where(self.mat_logic == 2)
@@ -86,12 +116,16 @@ class Trtris_map:
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
         
         if x_max + direction < self.map_size[0] and x_min + direction >= 0:
-            for f_block in falling_blocks:
-                self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
-            for f_block in falling_blocks:
-                self.mat_logic[f_block[0] + direction,f_block[1] ] = 2
-                self.mat_color[f_block[0] + direction,f_block[1]] = color
-            self.graphic_step()
+            falling_mask_logic = self.mat_logic[x_min:x_max+1,y_min:y_max+1]
+            [w,h] = falling_mask_logic.shape
+            if not np.any(np.logical_and(falling_mask_logic == 2, 
+                                         self.mat_logic[x_min+direction:x_min+w+direction,y_max-h+1:y_max+1] == 1)):
+                for f_block in falling_blocks:
+                    self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
+                for f_block in falling_blocks:
+                    self.mat_logic[f_block[0] + direction,f_block[1] ] = 2
+                    self.mat_color[f_block[0] + direction,f_block[1]] = color
+                self.graphic_step()
     
 
     def block_rotate(self,direction):
@@ -103,20 +137,21 @@ class Trtris_map:
         falling_mask_color = np.rot90(self.mat_color[x_min:x_max+1,y_min:y_max+1],direction).copy()
 
         [w,h] = falling_mask_logic.shape
-        for f_block in falling_blocks:
-            self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
-
-        if not np.any(np.logical_and(falling_mask_logic == 2, self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] == 1)):
-            self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_logic
-            self.mat_color[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_color
-        self.graphic_step()
+        if x_min+w < self.map_size[0] and y_max+1 < self.map_size[1]:
+            for f_block in falling_blocks:
+                self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
+            if not np.any(np.logical_and(falling_mask_logic == 2, self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] == 1)):
+                self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_logic
+                self.mat_color[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_color
+                self.graphic_step()
 
 
     def main_thread(self):
-        self.block_spawn(1)
         while not self.game_over:
             t_begin = core.getTime()
             while core.getTime() - t_begin < self.gamespeed:
+                if not self.spawn_flag:
+                    break
                 slide_direction = 0
                 rotate_direction = 0
                 keys_pressed = event.getKeys()
@@ -127,27 +162,14 @@ class Trtris_map:
                 if 'x' in keys_pressed:
                     slide_direction += 1
                 if 'comma' in keys_pressed:#<
-                    rotate_direction -= 1
-                if 'period' in keys_pressed:#>
                     rotate_direction += 1
+                if 'period' in keys_pressed:#>
+                    rotate_direction -= 1
+                if 'space' in keys_pressed:#>
+                    self.spawn_flag = False
                 self.block_slide(slide_direction)
                 self.block_rotate(rotate_direction)
             self.game_step()
-
-
-                    
-        
-    
-    def block_spawn(self,shape_no):
-        new_blocks_mask = tetris_shapes[shape_no]
-        new_blocks_color = shape_no + 1
-        [new_width,new_height] = new_blocks_mask.shape
-        spawn_x = self.map_size[0] // 2 - new_width // 2
-
-        self.mat_logic[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = 2 * new_blocks_mask
-        self.mat_color[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = new_blocks_color * new_blocks_mask
-
-        self.graphic_step()
     
     def mat_iter(self):
 
@@ -159,11 +181,15 @@ class Trtris_map:
             # 在block_touchdown后不应该有值为2的区域了
             rows_eliminated = 0
             row_sums = np.sum(self.mat_logic == 1,axis=0)
+            print(row_sums)
             for j in range(len(row_sums)):
                 if row_sums[j] == self.map_size[0]:
-                    self.mat_logic[:,j:-1] = self.mat_logic[:,j+1:]
-                    self.mat_color[:,j:-1] = self.mat_color[:,j+1:]
                     rows_eliminated += 1
+                else:
+                    break
+            if rows_eliminated > 0:
+                self.mat_logic[:,:-rows_eliminated] = self.mat_logic[:,rows_eliminated:]
+                self.mat_color[:,:-rows_eliminated] = self.mat_color[:,rows_eliminated:]
             return rows_eliminated
         falling_blocks = self._get_falling_blocks()
         # print(falling_blocks)
@@ -174,7 +200,7 @@ class Trtris_map:
                     block_touchdown()
                     score = block_eliminate()
                     score = score ** 2
-                    return score
+                    return score,True
             # 下落一格
             color = self.mat_color[f_block[0],f_block[1]]
             for f_block in falling_blocks:
@@ -183,7 +209,7 @@ class Trtris_map:
                 self.mat_logic[f_block[0],f_block[1] -1] = 2
                 self.mat_color[f_block[0],f_block[1] -1] = color
 
-        return 0
+        return 0,False
 
         
 
