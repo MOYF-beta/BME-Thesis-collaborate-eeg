@@ -1,4 +1,6 @@
+import argparse
 from psychopy import visual, core, event, monitors
+import yaml
 from tetris_shape import tetris_shapes,tetris_color
 import numpy as np
 from numba import jit
@@ -60,6 +62,8 @@ class Trtris_map:
         self.spawn_flag = False
         self.next_block_no = int(self.pack[0])
 
+        self.key_timestamps = []
+
     def graphic_step(self): 
         map_colors = [tetris_color[self.mat_color[i, j]] 
                   for i in range(self.map_size[0]) 
@@ -80,7 +84,8 @@ class Trtris_map:
         self.game_score_text.draw()
         self.game_speed_text.draw()
         self.win.flip()
- 
+
+
     def game_step(self):
 
         def block_spawn(shape_no):
@@ -175,6 +180,7 @@ class Trtris_map:
 
 
     def main_thread(self):
+        t_0 = core.getTime()
         while not self.game_over:
             t_begin = core.getTime()
             iter_time = 1/(np.sqrt(self.gamespeed)+1)
@@ -184,21 +190,62 @@ class Trtris_map:
                 slide_direction = 0
                 rotate_direction = 0
                 keys_pressed = event.getKeys()
-                # if(len(keys_pressed)>0):
-                #     print(keys_pressed)
+                if len(keys_pressed) > 0:
+                    self.key_timestamps.append({"keys": keys_pressed, "time": core.getTime() - t_0})
                 if 'z' in keys_pressed:
                     slide_direction -= 1
                 if 'x' in keys_pressed:
                     slide_direction += 1
-                if 'comma' in keys_pressed:#<
+                if 'comma' in keys_pressed: # <
                     rotate_direction += 1
-                if 'period' in keys_pressed:#>
+                if 'period' in keys_pressed: # >
                     rotate_direction -= 1
-                if 'space' in keys_pressed:#>
+                if 'space' in keys_pressed: 
                     self.spawn_flag = False
                 self.block_slide(slide_direction)
-                self.block_rotate(rotate_direction)
+                self.block_rotate(rotate_direction) 
             self.game_step()
+        print(self.key_timestamps)
+        with open("key_timestamps.yaml", "w") as file:
+            yaml.dump(self.key_timestamps, file)
+        
+    def main_thread_replay(self):
+        with open("key_timestamps.yaml", "r") as file:
+            key_timestamps = yaml.load(file, Loader=yaml.FullLoader)
+            print(key_timestamps)
+            idx = 0
+            t_0 = core.getTime()
+            entry = key_timestamps[idx]
+            keys = entry["keys"]
+            target_time = entry["time"]
+            while not self.game_over:
+                t_begin = core.getTime()
+                iter_time = 1/(np.sqrt(self.gamespeed)+1)
+
+                while core.getTime() - t_begin < iter_time:
+                    if not self.spawn_flag:
+                        break
+                    if(core.getTime() - t_0) > target_time:
+                        slide_direction = rotate_direction = 0
+                        if 'z' in keys:
+                            slide_direction += -1
+                        if 'x' in keys:
+                            slide_direction += 1
+                        if 'comma' in keys:  # <
+                            rotate_direction += 1
+                        if 'period' in keys:  # >
+                            rotate_direction += -1
+                        if 'space' in keys:
+                            self.spawn_flag = False
+                        self.block_slide(slide_direction)
+                        self.block_rotate(rotate_direction)
+                        idx += 1
+                        entry = key_timestamps[idx]
+                        keys = entry["keys"]
+                        target_time = entry["time"]
+
+                self.game_step()
+                    
     
     def mat_iter(self):
 
@@ -243,5 +290,17 @@ class Trtris_map:
         return 0,False
 
 
-map = Trtris_map()
-map.main_thread()
+def main(start_mode):
+    map = Trtris_map()
+    if start_mode == 'normal':
+        map.main_thread()
+    elif start_mode == 'replay':
+        map.main_thread_replay()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='游戏模式')
+    parser.add_argument('--mode', choices=['normal', 'replay'], default='normal', help='启动模式：正常模式或回放模式')
+
+    args = parser.parse_args()
+
+    main(args.mode)
