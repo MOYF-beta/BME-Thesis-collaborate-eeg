@@ -205,7 +205,7 @@ class Trtris_map:
                 self.block_slide(slide_direction)
                 self.block_rotate(rotate_direction) 
             self.game_step()
-        print(self.key_timestamps)
+        #print(self.key_timestamps)
         with open("key_timestamps.yaml", "w") as file:
             yaml.dump(self.key_timestamps, file)
         
