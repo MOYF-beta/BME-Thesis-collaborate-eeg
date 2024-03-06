@@ -4,12 +4,21 @@ import numpy as np
 from numba import jit
 class Trtris_map:
 
-    def _generate_positions(self, map_size, rect_size, margin):
+    def _get_positions_gameplay(self, map_size, rect_size, margin):
         positions = []
         for i in range(map_size[0]):
             for j in range(map_size[1]):
                 x = margin + -1 + i * rect_size + 0.5 * rect_size
                 y = -1 + j * rect_size + 0.5 * rect_size
+                positions.append((x, y))
+        return positions
+
+    def _get_positions_preview(self, rect_size):
+        positions = []
+        for i in range(3):
+            for j in range(4):
+                x = 0.6 - rect_size * 3 + i * rect_size + 1.6 * rect_size
+                y = 0.6 - rect_size * 4 + j * rect_size + 0.5 * rect_size
                 positions.append((x, y))
         return positions
 
@@ -21,41 +30,55 @@ class Trtris_map:
         self.mat_render = []
         self.mat_logic = np.zeros(map_size,dtype=np.int8)
         self.mat_color = np.zeros(map_size,dtype=np.int8)
-        rect_size = (game_zone_width - 2 * margin)/map_size[0] * 2
-        for i in range(0,map_size[0]):
-            new_col = []
-            for j in range(0,map_size[1]):
-                rect = visual.Rect(self.win, width=rect_size, height=rect_size,
-                                    fillColor='white',lineColor='black')
-                rect_cent_x =  margin + -1 + i * rect_size + 0.5 * rect_size
-                rect_cent_y = -1 + j * rect_size + 0.5 * rect_size
-                rect.setPos((rect_cent_x,rect_cent_y))
-                new_col.append(rect)
-            self.mat_render.append(new_col)
+        rect_size = (game_zone_width - 2 * margin)/map_size[0] * 2 
         nElements = map_size[0] * map_size[1]
-        self.stim_array = visual.ElementArrayStim(win=self.win, 
+        self.gameplay_area = visual.ElementArrayStim(win=self.win, 
                                           nElements=nElements, 
                                           elementTex=None, 
                                           elementMask="rect", 
                                           sizes=rect_size, 
-                                          xys=self._generate_positions(map_size, rect_size, margin), 
+                                          xys=self._get_positions_gameplay(map_size, rect_size, margin), 
                                           colors=[0,0,0])
-        self.gamespeed = 0.5
+        self.preview_area = visual.ElementArrayStim(win=self.win, 
+                                          nElements=4*3, 
+                                          elementTex=None, 
+                                          elementMask="rect", 
+                                          sizes=rect_size, 
+                                          xys=self._get_positions_preview(rect_size), 
+                                          colors=[0,0,0])
+        
+        self.next_block_text = visual.TextStim(win=self.win, text='Next:', pos=(0.6, 0.6 + rect_size), color=(1, 1, 1))
+        self.game_score_text = visual.TextStim(win=self.win, text='Score: 0', pos=(0.6, 0.2-rect_size), color=(1, 1, 1))
+        self.game_speed_text = visual.TextStim(win=self.win, text='Speed: 0.5', pos=(0.6, 0.2-rect_size*2), color=(1, 1, 1))
+
+        self.game_score = 0
+        self.gamespeed = 1
         self.game_over = False
         self.pack_no = 0
         self.pack = np.array(range(7),dtype=np.int8)
         self.game_step_count = 0
         self.spawn_flag = False
+        self.next_block_no = int(self.pack[0])
 
-
-    def graphic_step(self):
-        # 更新颜色
-        colors = [tetris_color[self.mat_color[i, j]] 
+    def graphic_step(self): 
+        map_colors = [tetris_color[self.mat_color[i, j]] 
                   for i in range(self.map_size[0]) 
                   for j in range(self.map_size[1])]
-        self.stim_array.colors = colors
-        # 绘制
-        self.stim_array.draw()
+        self.gameplay_area.colors = map_colors
+        [w,h] = tetris_shapes[self.next_block_no].shape
+        preview_colors = [tetris_color[self.next_block_no+1] if i<w and j<h and tetris_shapes[self.next_block_no][i,j] != 0 else tetris_color[0]
+                  for i in range(3) 
+                  for j in range(4)]
+        self.preview_area.colors = preview_colors
+
+        self.game_score_text.text = f'Score: {self.game_score}'
+        self.game_speed_text.text = f'Speed: {self.gamespeed}'
+
+        self.gameplay_area.draw()
+        self.preview_area.draw()
+        self.next_block_text.draw()
+        self.game_score_text.draw()
+        self.game_speed_text.draw()
         self.win.flip()
  
     def game_step(self):
@@ -71,18 +94,23 @@ class Trtris_map:
                 self.mat_logic[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = 2 * new_blocks_mask
                 self.mat_color[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = new_blocks_color * new_blocks_mask
                 self.spawn_flag = True
-                self.graphic_step()
             else:
                 self.game_over = True
-            self.pack_no += 1
 
         def pack_spawn():
-            if self.pack_no >=7:
+            block_spawn(self.pack[self.pack_no])
+            self.pack_no += 1
+            if self.pack_no == 7:
                 self.pack_no = 0
                 np.random.shuffle(self.pack)
-            block_spawn(self.pack[self.pack_no])
-        
+
+            self.next_block_no = self.pack[self.pack_no]
+            self.graphic_step()
+            
+            
         [new_score,block_falled] = self.mat_iter()
+        self.game_score += new_score
+        self.gamespeed = self.game_score // 5 + 1
         if block_falled or self.game_step_count == 0:
             pack_spawn()
         self.graphic_step()
@@ -137,7 +165,7 @@ class Trtris_map:
         falling_mask_color = np.rot90(self.mat_color[x_min:x_max+1,y_min:y_max+1],direction).copy()
 
         [w,h] = falling_mask_logic.shape
-        if x_min+w < self.map_size[0] and y_max+1 < self.map_size[1]:
+        if x_min+w <= self.map_size[0] and y_max+1 < self.map_size[1]:
             for f_block in falling_blocks:
                 self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
             if not np.any(np.logical_and(falling_mask_logic == 2, self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] == 1)):
@@ -149,7 +177,8 @@ class Trtris_map:
     def main_thread(self):
         while not self.game_over:
             t_begin = core.getTime()
-            while core.getTime() - t_begin < self.gamespeed:
+            iter_time = 1/(np.sqrt(self.gamespeed)+1)
+            while core.getTime() - t_begin < iter_time:
                 if not self.spawn_flag:
                     break
                 slide_direction = 0
@@ -178,21 +207,23 @@ class Trtris_map:
             self.mat_logic[falling_blocks] = 1
 
         def block_eliminate():
-            # 在block_touchdown后不应该有值为2的区域了
-            rows_eliminated = 0
             row_sums = np.sum(self.mat_logic == 1,axis=0)
-            print(row_sums)
-            for j in range(len(row_sums)):
-                if row_sums[j] == self.map_size[0]:
-                    rows_eliminated += 1
-                else:
-                    break
+            full_rows = np.where(row_sums == self.map_size[0])[0]
+            rows_eliminated = len(full_rows)
             if rows_eliminated > 0:
-                self.mat_logic[:,:-rows_eliminated] = self.mat_logic[:,rows_eliminated:]
-                self.mat_color[:,:-rows_eliminated] = self.mat_color[:,rows_eliminated:]
+                non_full_rows = np.where(row_sums != self.map_size[0])[0]
+                new_logic = np.zeros_like(self.mat_logic)
+                new_color = np.zeros_like(self.mat_color)
+
+                new_logic[:,0:len(non_full_rows)] = self.mat_logic[:,non_full_rows]
+                new_color[:,0:len(non_full_rows)] = self.mat_color[:,non_full_rows]
+
+                self.mat_logic = new_logic
+                self.mat_color = new_color
+
             return rows_eliminated
+        
         falling_blocks = self._get_falling_blocks()
-        # print(falling_blocks)
         if len(falling_blocks) > 0:
             # 检测碰撞
             for f_block in falling_blocks:
@@ -211,15 +242,6 @@ class Trtris_map:
 
         return 0,False
 
-        
-
 
 map = Trtris_map()
-
 map.main_thread()
-
-
-# for j in range(7):
-#     map.block_spawn(j)
-#     for i in range(30):
-#         map.game_step()
