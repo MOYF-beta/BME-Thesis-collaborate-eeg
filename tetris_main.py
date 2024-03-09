@@ -181,6 +181,9 @@ class Trtris_map:
 
     def main_thread(self):
         t_0 = core.getTime()
+        seed = np.random.randint(0,233333)
+        self.key_timestamps.append({"seed": seed})
+        np.random.seed(seed)
         while not self.game_over:
             t_begin = core.getTime()
             iter_time = 1/(np.sqrt(self.gamespeed)+1)
@@ -212,8 +215,8 @@ class Trtris_map:
     def main_thread_replay(self):
         with open("key_timestamps.yaml", "r") as file:
             key_timestamps = yaml.load(file, Loader=yaml.FullLoader)
-            print(key_timestamps)
-            idx = 0
+            np.random.seed(key_timestamps[0]['seed'])
+            idx = 1
             t_0 = core.getTime()
             entry = key_timestamps[idx]
             keys = entry["keys"]
