@@ -11,12 +11,15 @@ class FeatureExtractor:
     def __init__(self, p_1:list[np.array], p_2:list[np.array], samplerate=2000, down_samplerate=250,cached = False, n_segment= 0):
         assert len(p_1) == len(p_2), 'p1、p2含有的segment数量不相等'
 
+        segment_time = []
         # 统一数据长度。这里我们认为采样率是相同的。
         for idx in range(len(p_1)):
-            segment_len = min(p_1[idx].shape[0], p_2[idx].shape[0])
+            segment_len = min(p_1[idx].shape[1], p_2[idx].shape[1])
             p_1[idx] = p_1[idx][:segment_len]
             p_2[idx] = p_2[idx][:segment_len]
-
+            segment_time.append(segment_len)
+        segment_time = np.array(segment_time)
+        self.y = (segment_time - np.mean(segment_time)) / np.std(segment_time)
         downsampled_p1 = []
         downsampled_p2 = []
         self.n_segment = len(p_1) if not cached else n_segment
@@ -87,10 +90,13 @@ class FeatureExtractor:
     
     def get_PLV(self, channels=[]):
         plv_list = []
+        channels = channels + [i + len(channels) for i in range(len(channels))]
         for plv_matrix in self.plv_cache:
             selected_plv_matrix = plv_matrix[np.ix_(channels, channels)]
             plv_list.append(selected_plv_matrix)
         return plv_list
+    def get_Y(self):
+        return self.y
 
 def test():
     name1 = "ZCH"
@@ -114,7 +120,17 @@ def test():
     
     featureExtractor = FeatureExtractor(p_1,p_2,cached=True)
 
-    print(featureExtractor.get_PSD([0,5,8,3])[0].shape)
+    from NN_train import RegressionOpti
+    r_opti = RegressionOpti(8,6)
+    channels = [0,1,2,3,4,5,6,7]
+    psd =  featureExtractor.get_PSD(channels)
+    plv = featureExtractor.get_PLV(channels)
+    y = featureExtractor.get_Y()
+    data = [(psd[i],plv[i],y[i]) for i in range(len(y))]
+    import time
+    t0 = time.time()
+    result = r_opti.train_eval(data)
+    print(result,time.time() - t0)
 
 if __name__ == "__main__":
     test()

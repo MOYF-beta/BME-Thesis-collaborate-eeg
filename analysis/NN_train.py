@@ -7,40 +7,57 @@ import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
 patience = 10  # 早停耐心值
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Model(nn.Module):
     def __init__(self, n_channel, n_band):
         super(Model, self).__init__()
-        # 一维卷积层
-        self.conv1 = nn.Conv1d(in_channels=2*n_channel, out_channels=2*n_channel, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv1d(in_channels=2*n_channel, out_channels=2*n_channel, kernel_size=n_band - 1, stride=n_band - 1)  # 假设通过这一层减少到1
+        # 图神经网络部分
+        self.gcn1 = GCNConv(n_band, n_band * 2)
+        self.gcn2 = GCNConv(n_band * 2, 1)
+        self.fc_g = nn.Linear(2 * n_channel, 2 * n_channel)
         
-        # 图神经网络层
-        self.gcn1 = GCNConv(2*n_channel, 2*n_channel)
-        self.gcn2 = GCNConv(2*n_channel, 1)  # 假设第二层GCN输出1个特征
+        # 二维卷积部分
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(16, 16, kernel_size=3, padding=1)
+        self.fc_c = nn.Linear(16 * (2 * n_channel) * (2 * n_channel), 2 * n_channel)
         
-        # 全连接层
-        self.fc1 = nn.Linear(2*n_channel + 2*n_channel, 2*n_channel)  # 假设拼接后的特征大小
-        self.fc2 = nn.Linear(2*n_channel, 1)
+        # 后续的全连接层
+        self.fc1 = nn.Linear(4 * n_channel, 2 * n_channel)
+        self.fc2 = nn.Linear(2 * n_channel, n_channel)
+        self.fc3 = nn.Linear(n_channel, 1)
+
+        self.to(torch.float32)
+
+        self.n_channel = n_channel
+        self.busy = False
+    
+    def create_fully_connected_edge_index(self):
+        rows, cols = torch.meshgrid(torch.arange(2 * self.n_channel), torch.arange(2 * self.n_channel), indexing='ij')
+        mask = rows != cols
+        return torch.stack([rows[mask], cols[mask]], dim=0).to(device)
+
+    def forward(self, x1, x2):
+        # 图特征处理
+        edge_index = self.create_fully_connected_edge_index()
+        x1 = F.relu(self.gcn1(x1, edge_index))
+        x1 = F.dropout(x1, training=self.training)
+        x1 = F.relu(self.gcn2(x1, edge_index))
+        x1 = x1.view(2 * self.n_channel, -1).T
+        x1 = F.relu(self.fc_g(x1))
         
-    def forward(self, x_conv, adj_matrix):
-        # 处理第一个特征
-        x_conv = x_conv.permute(0, 2, 1)  # 为了匹配Conv1d的输入维度需求
-        x_conv = F.relu(self.conv1(x_conv))
-        x_conv = F.relu(self.conv2(x_conv))
-        x_conv = x_conv.view(x_conv.size(0), -1)  # 扁平化
+        # 邻接矩阵特征处理
+        x2 = x2.unsqueeze(0).unsqueeze(0) # 增加一个通道维度
+        x2 = F.relu(self.conv1(x2))
+        x2 = F.relu(self.conv2(x2))
+        x2 = x2.view(1, -1)
+        x2 = F.relu(self.fc_c(x2))
         
-        # 处理图特征
-        x_gcn = F.relu(self.gcn1(adj_matrix, adj_matrix))
-        x_gcn = F.relu(self.gcn2(x_gcn, adj_matrix))
-        x_gcn = x_gcn.view(x_gcn.size(0), -1)  # 扁平化
-        
-        # 拼接两个特征
-        x = torch.cat((x_conv, x_gcn), dim=1)
-        
-        # 全连接层
+        # 特征拼接
+        x = torch.cat((x1, x2), dim=1)
         x = F.relu(self.fc1(x))
-        x = torch.sigmoid(self.fc2(x))  # 假设最终输出是归一化的
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
         
         return x
 
@@ -48,11 +65,11 @@ class RegressionOpti:
     def __init__(self, n_channel, n_band, n_thread=4):
         self.n_channel = n_channel
         self.n_band = n_band
-        self.model_pool = [Model(n_channel, n_band) for _ in range(n_thread + 1)]
+        self.model_pool = [Model(n_channel, n_band).to(device) for _ in range(n_thread + 1)]
         self.semaphore = Semaphore(n_thread + 1)  # 控制对模型池的访问
 
 
-    def _train(self, model, train_data, val_loader):
+    def _train(self, model, train_data, val_data):
         model.train()  # 设置模型为训练模式
         optimizer = Adam(model.parameters())
         loss_fn = nn.MSELoss()
@@ -69,7 +86,7 @@ class RegressionOpti:
                 loss.backward()
                 optimizer.step()
             
-            val_loss = self._evaluate(model, val_loader)
+            val_loss = self._evaluate(model, val_data)
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 patience_counter = 0  # 重置耐心计数器
@@ -86,8 +103,8 @@ class RegressionOpti:
             x_conv, adj_matrix, y = val_data
             predictions = model(x_conv, adj_matrix)
             loss = loss_fn(predictions, y)
-            total_loss += loss.item() * y.size(0)
-            total_samples += y.size(0)
+            total_loss += loss.item()
+            total_samples += 1
         
         average_loss = total_loss / total_samples
         return average_loss
@@ -104,8 +121,16 @@ class RegressionOpti:
         all_losses = []
         for i, (x_conv, adj_matrix, y) in enumerate(data):
 
-            self._train(model, data[:i] + data[i+1:]) # 除了编号为i的其余元素
-            loss = self._evaluate(model,(x_conv, adj_matrix, y))
+            x_conv = torch.tensor(x_conv,dtype=torch.float32).to(device)
+            adj_matrix = torch.tensor(adj_matrix,dtype=torch.float32).to(device)
+            y = torch.tensor(y,dtype=torch.float32).to(device)
+            val_data = (x_conv, adj_matrix, y)
+
+            train_data = [(torch.tensor(x,dtype=torch.float32).to(device),
+                            torch.tensor(adj,dtype=torch.float32).to(device),
+                              torch.tensor(yl,dtype=torch.float32).to(device)) for j, (x, adj, yl) in enumerate(data) if j != i]
+            self._train(model, train_data, val_data)
+            loss = self._evaluate(model, val_data)
             all_losses.append(loss)
         
         # 重置模型和优化器，然后标记模型为闲置
