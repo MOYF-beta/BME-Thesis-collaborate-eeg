@@ -1,16 +1,14 @@
 import os
 import numpy as np
 from scipy.signal import welch, hilbert, resample 
-import numba as nb
-nb.config.NUMBA_DEFAULT_NUM_THREADS=20
-from numba import njit,prange
 from tqdm import tqdm,trange
+
 class FeatureExtractor:
 
     # 频带定义
     bands = {'delta': (1, 4), 'theta': (4, 8), 'alpha': (8, 12), 'beta': (12, 30), 'low-gamma': (30, 60), 'high-gamma': (60, 100)}
     cache_dir = './feature_cache'
-    def __init__(self, p_1:list[np.array], p_2:list[np.array], samplerate=2000, down_samplerate=250):
+    def __init__(self, p_1:list[np.array], p_2:list[np.array], samplerate=2000, down_samplerate=250,cached = False, n_segment= 0):
         assert len(p_1) == len(p_2), 'p1、p2含有的segment数量不相等'
 
         # 统一数据长度。这里我们认为采样率是相同的。
@@ -21,15 +19,21 @@ class FeatureExtractor:
 
         downsampled_p1 = []
         downsampled_p2 = []
-        for idx in trange(len(p_1),desc='downsampling',leave=True):
-            downsampled_p1.append(resample(p_1[idx], int(p_1[idx].shape[1] / samplerate * down_samplerate), axis=1))
-            downsampled_p2.append(resample(p_2[idx], int(p_2[idx].shape[1] / samplerate * down_samplerate), axis=1))
+        self.n_segment = len(p_1) if not cached else n_segment
+        if not cached:
+            for idx in trange(len(p_1),desc='downsampling',leave=True):
+                downsampled_p1.append(resample(p_1[idx], int(p_1[idx].shape[1] / samplerate * down_samplerate), axis=1))
+                downsampled_p2.append(resample(p_2[idx], int(p_2[idx].shape[1] / samplerate * down_samplerate), axis=1))
 
-        self.p_1 = downsampled_p1
-        self.p_2 = downsampled_p2
-        self.n_segment = len(p_1)
+            self.p_1 = downsampled_p1
+            self.p_2 = downsampled_p2
+        
+            for idx in range(self.n_segment):
+                segment_len = min(self.p_1[idx].shape[1], self.p_2[idx].shape[1])
+                self.p_1[idx] = self.p_1[idx][:,:segment_len]
+                self.p_2[idx] = self.p_2[idx][:,:segment_len]
 
-        self.samplerate = down_samplerate
+            self.samplerate = down_samplerate
         # 预先计算
         if not os.path.exists(FeatureExtractor.cache_dir):
             os.makedirs(FeatureExtractor.cache_dir)
@@ -54,7 +58,7 @@ class FeatureExtractor:
                 psd_cache.append(segment_psd)
             np.save(psd_cache_file, psd_cache)
             return psd_cache
-    @njit(parallel=True)
+    
     def _precompute_plv(self):
         plv_cache_file = os.path.join(FeatureExtractor.cache_dir, 'plv_cache.npy')
         if os.path.exists(plv_cache_file):
@@ -64,8 +68,8 @@ class FeatureExtractor:
             for segment_p1, segment_p2 in tqdm(zip(self.p_1, self.p_2), desc='precompute_plv', leave=True, position=0):
                 combined_segments = np.concatenate([segment_p1, segment_p2], axis=0)
                 plv_matrix = np.zeros((len(combined_segments), len(combined_segments)))
-                for i in trange(len(combined_segments), desc='plv_progress', leave=True, position=1):
-                    for j in prange(i, len(combined_segments)):
+                for i in trange(len(combined_segments), desc='segments', leave=True, position=1):
+                    for j in range(i, len(combined_segments)):
                         phase_diff = np.angle(hilbert(combined_segments[i])) - np.angle(hilbert(combined_segments[j]))
                         plv = np.abs(np.sum(np.exp(1j * phase_diff)) / len(phase_diff))
                         plv_matrix[i, j] = plv
@@ -78,7 +82,7 @@ class FeatureExtractor:
         psd_list = []
         for segment_psd in self.psd_cache:
             feature_vector = [segment_psd[channel] for channel in channels] + [segment_psd[channel+self.n_segment] for channel in channels]
-            psd_list.append(np.concatenate(feature_vector))
+            psd_list.append(np.array(feature_vector))
         return psd_list
     
     def get_PLV(self, channels=[]):
@@ -108,14 +112,9 @@ def test():
             data = np.load(filepath)
             p_2.append(data)
     
-    featureExtractor = FeatureExtractor(p_1,p_2)
+    featureExtractor = FeatureExtractor(p_1,p_2,cached=True)
 
-    print(featureExtractor.plv_cache)
-    print(featureExtractor.psd_cache)
-
-    print(featureExtractor.get_PLV([1,2,3,5]))
-
-    print(featureExtractor.get_PSD([0,5,8,3]))
+    print(featureExtractor.get_PSD([0,5,8,3])[0].shape)
 
 if __name__ == "__main__":
     test()
