@@ -4,7 +4,6 @@ import mne
 # 假设文件名为 'example.vhdr'
 vhdr_file = "C:\\Users\\14152\\Desktop\\collaboration_measurement\\data\\LZ.vhdr"
 
-# 使用 mne.io.read_raw_brainvision 读取数据
 raw = mne.io.read_raw_brainvision(vhdr_file, preload=True)
 print(raw.info)
 

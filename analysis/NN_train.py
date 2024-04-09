@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
+patience = 10  # 早停耐心值
+
 class Model(nn.Module):
     def __init__(self, n_channel, n_band):
         super(Model, self).__init__()
@@ -55,7 +57,6 @@ class RegressionOpti:
         optimizer = Adam(model.parameters())
         loss_fn = nn.MSELoss()
         
-        patience = 10  # 早停耐心值
         patience_counter = 0  # 耐心计数器
         best_val_loss = float('inf')
         
@@ -99,7 +100,7 @@ class RegressionOpti:
         if model is None:
             raise Exception("No idle model available.")
         
-        # 这里是训练和验证的伪代码，需要实现实际的训练逻辑
+        # 这里是训练和验证的伪代码
         all_losses = []
         for i, (x_conv, adj_matrix, y) in enumerate(data):
 

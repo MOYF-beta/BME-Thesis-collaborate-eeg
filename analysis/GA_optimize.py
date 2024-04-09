@@ -1,5 +1,6 @@
 import random
 import multiprocessing
+import numpy as np
 from deap import base, creator, tools, algorithms
 
 # 假设的 get_effectiveness 函数
@@ -51,10 +52,10 @@ def main(pool_size=4):
     CXPB, MUTPB, NGEN = 0.5, 0.2, 40
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("avg", numpy.mean)
-    stats.register("std", numpy.std)
-    stats.register("min", numpy.min)
-    stats.register("max", numpy.max)
+    stats.register("avg", np.mean)
+    stats.register("std", np.std)
+    stats.register("min", np.min)
+    stats.register("max", np.max)
 
     pop, log = algorithms.eaSimple(pop, toolbox, CXPB, MUTPB, NGEN, stats=stats, verbose=True)
 
@@ -62,4 +63,4 @@ def main(pool_size=4):
     print("Best Individual = ", best_ind, "\nBest Fitness = ", best_ind.fitness.values)
 
 if __name__ == "__main__":
-    main(4)  # 你可以根据你的机器的CPU核心数来调整这个参数
+    main(8)
