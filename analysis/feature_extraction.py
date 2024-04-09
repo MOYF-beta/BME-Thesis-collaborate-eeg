@@ -1,7 +1,9 @@
 import os
 import numpy as np
 from scipy.signal import welch, hilbert, resample 
-
+import numba as nb
+nb.config.NUMBA_DEFAULT_NUM_THREADS=20
+from numba import njit,prange
 from tqdm import tqdm,trange
 class FeatureExtractor:
 
@@ -52,18 +54,18 @@ class FeatureExtractor:
                 psd_cache.append(segment_psd)
             np.save(psd_cache_file, psd_cache)
             return psd_cache
-    
+    @njit(parallel=True)
     def _precompute_plv(self):
         plv_cache_file = os.path.join(FeatureExtractor.cache_dir, 'plv_cache.npy')
         if os.path.exists(plv_cache_file):
             return np.load(plv_cache_file, allow_pickle=True)
         else:
             plv_cache = []
-            for segment_p1, segment_p2 in tqdm(zip(self.p_1, self.p_2), desc='precompute_plv', leave=True):
+            for segment_p1, segment_p2 in tqdm(zip(self.p_1, self.p_2), desc='precompute_plv', leave=True, position=0):
                 combined_segments = np.concatenate([segment_p1, segment_p2], axis=0)
                 plv_matrix = np.zeros((len(combined_segments), len(combined_segments)))
-                for i in range(len(combined_segments)):
-                    for j in range(i, len(combined_segments)):
+                for i in trange(len(combined_segments), desc='plv_progress', leave=True, position=1):
+                    for j in prange(i, len(combined_segments)):
                         phase_diff = np.angle(hilbert(combined_segments[i])) - np.angle(hilbert(combined_segments[j]))
                         plv = np.abs(np.sum(np.exp(1j * phase_diff)) / len(phase_diff))
                         plv_matrix[i, j] = plv
