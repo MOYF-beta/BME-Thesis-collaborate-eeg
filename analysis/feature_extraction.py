@@ -19,7 +19,7 @@ class FeatureExtractor:
             p_2[idx] = p_2[idx][:segment_len]
             segment_time.append(segment_len)
         segment_time = np.array(segment_time)
-        self.y = (segment_time - np.mean(segment_time)) / np.std(segment_time)
+        self.y = (segment_time - np.min(segment_time)) / (np.max(segment_time) - np.min(segment_time))
         downsampled_p1 = []
         downsampled_p2 = []
         self.n_segment = len(p_1) if not cached else n_segment
