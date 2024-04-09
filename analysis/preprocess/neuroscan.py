@@ -2,9 +2,9 @@ import mne
 import numpy as np
 import matplotlib.pyplot as plt
 
-# 路径需要根据实际情况修改，这里为了演示代码的通用性，用了一个示例路径
-vhdr_file = "C:/Users/14152/Desktop/collaboration_measurement/data/LZ.vhdr"
-name = 'LZ'
+name = 'ZCH'
+vhdr_file = f"C:/Users/14152/Desktop/collaboration_measurement/data/{name}.vhdr"
+
 # 读取脑电数据
 raw = mne.io.read_raw_brainvision(vhdr_file, preload=True)
 
