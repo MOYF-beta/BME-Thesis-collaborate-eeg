@@ -93,6 +93,7 @@ def plot_progress(log):
     fit_avgs = log.select("avg")
     fit_maxs = log.select("max")
 
+    plt.ion()  # 打开交互模式
     plt.plot(gen, fit_mins, label="Minimum Fitness")
     plt.plot(gen, fit_avgs, label="Average Fitness")
     plt.plot(gen, fit_maxs, label="Maximum Fitness")
@@ -103,6 +104,9 @@ def plot_progress(log):
     plt.legend()
     plt.grid(True)
     plt.show()
+
+    plt.ioff()  # 关闭交互模式
+
 
 def main(pool_size=4):
     setup_pool(pool_size)
@@ -125,11 +129,15 @@ def main(pool_size=4):
     stats.register("max", np.max)
 
     pop, log = algorithms.eaSimple(pop, toolbox, CXPB, MUTPB, NGEN, stats=stats, verbose=True)
-
+    print("----GA begin running----\n")
     best_ind = tools.selBest(pop, 1)[0]
     print("Best Individual = ", best_ind, "\nBest Fitness = ", best_ind.fitness.values)
 
-    plot_progress(log)
+    try:
+        plot_progress(log)
+    except Exception:
+        print('plot_progress error')
+        
 
 if __name__ == "__main__":
     main(8)
