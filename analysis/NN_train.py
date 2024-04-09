@@ -82,7 +82,7 @@ class RegressionOpti:
                 optimizer.zero_grad()
                 # 假设model.forward能够处理对应的输入
                 predictions = model(x_conv, adj_matrix)
-                loss = loss_fn(predictions, y)
+                loss = loss_fn(predictions.squeeze(), y)
                 loss.backward()
                 optimizer.step()
             
@@ -102,7 +102,7 @@ class RegressionOpti:
         with torch.no_grad():  # 在评估过程中不计算梯度
             x_conv, adj_matrix, y = val_data
             predictions = model(x_conv, adj_matrix)
-            loss = loss_fn(predictions, y)
+            loss = loss_fn(predictions.squeeze(), y)
             total_loss += loss.item()
             total_samples += 1
         
