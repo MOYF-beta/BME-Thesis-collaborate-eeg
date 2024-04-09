@@ -151,5 +151,6 @@ class RegressionOpti:
     def _reset_model(self, model):
         # 重置模型和优化器到初始状态
         model.__init__(self.n_channel, self.n_band)  # 重置模型参数
+        model.to(device)
         model.busy = False  # 标记模型为闲置
 

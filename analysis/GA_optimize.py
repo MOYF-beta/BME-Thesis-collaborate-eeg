@@ -31,30 +31,24 @@ for filename in files:
         p_2.append(data)
 r_opti = RegressionOpti(8,6)
 featureExtractor = FeatureExtractor(p_1,p_2,cached=True)
-featureExtractor = FeatureExtractor(p_1,p_2,cached=True)
 
-def call_counter(func):
-    def wrapper(*args, **kwargs):
-        wrapper.calls += 1
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        wrapper.total_time += elapsed_time
-        average_time = wrapper.total_time / wrapper.calls
-        print(f"'{func.__name__}' has been called {wrapper.calls} times. Avg execution time: {average_time:.6f} s", end='\r')
-        return result
-    wrapper.calls = 0
-    wrapper.total_time = 0
-    return wrapper
-
-@call_counter
 def get_effectiveness(combination):
+    get_effectiveness.calls += 1
+    start_time = time.time()
     psd =  featureExtractor.get_PSD(combination)
     plv = featureExtractor.get_PLV(combination)
     y = featureExtractor.get_Y()
     data = [(psd[i],plv[i],y[i]) for i in range(len(y))]
-    return r_opti.train_eval(data)
+    result = r_opti.train_eval(data)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    get_effectiveness.total_time += elapsed_time
+    average_time = get_effectiveness.total_time / get_effectiveness.calls
+    print(f"'get_effectiveness' Avg execution time: {average_time:.6f} s      ", end='\r')
+    return result
+
+get_effectiveness.calls = 0
+get_effectiveness.total_time = 0
 
 # 参数设置
 NUM_OBJECTIVES = 32
@@ -140,5 +134,5 @@ def main(pool_size=4):
         
 
 if __name__ == "__main__":
-    main(8)
+    main(6)
 
