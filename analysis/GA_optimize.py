@@ -33,36 +33,40 @@ r_opti = RegressionOpti(8,6)
 featureExtractor = FeatureExtractor(p_1,p_2,cached=True)
 
 def get_effectiveness(combination):
-    get_effectiveness.calls += 1
-    start_time = time.time()
+    # get_effectiveness.calls += 1
+    # start_time = time.time()
     psd =  featureExtractor.get_PSD(combination)
     plv = featureExtractor.get_PLV(combination)
     y = featureExtractor.get_Y()
     data = [(psd[i],plv[i],y[i]) for i in range(len(y))]
     result = r_opti.train_eval(data)
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    get_effectiveness.total_time += elapsed_time
-    average_time = get_effectiveness.total_time / get_effectiveness.calls
-    print(f"'get_effectiveness' Avg execution time: {average_time:.6f} s      ", end='\r')
+    # end_time = time.time()
+    # elapsed_time = end_time - start_time
+    # get_effectiveness.total_time += elapsed_time
+    # average_time = get_effectiveness.total_time / get_effectiveness.calls
+    # print(f"'get_effectiveness' Avg execution time: {average_time:.6f} s      ", end='\r')
     return result
 
-get_effectiveness.calls = 0
-get_effectiveness.total_time = 0
+# get_effectiveness.calls = 0
+# get_effectiveness.total_time = 0
 
 # 参数设置
 NUM_OBJECTIVES = 32
 NUM_SELECTED = 8
 
 # 定义问题
-creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox()
 
 # 定义如何随机选择目标
 toolbox.register("attribute", random.randint, 0, NUM_OBJECTIVES - 1)
-toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attribute, n=NUM_SELECTED)
+def unique_individual_creation():
+    sample = random.sample(range(NUM_OBJECTIVES), NUM_SELECTED)
+    sorted_sample = sorted(sample)
+    return creator.Individual(sorted_sample)
+toolbox.register("individual", unique_individual_creation)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 # 评估函数
@@ -104,9 +108,9 @@ def plot_progress(log):
 
 def main(pool_size=4):
     setup_pool(pool_size)
-
+    print("----GA began running----\n")
     random.seed(64)
-    pop = toolbox.population(n=100)
+    pop = toolbox.population(n=500)
 
     # 指定一些初始组合
     initial_combinations = [[random.randint(0, NUM_OBJECTIVES-1) for _ in range(NUM_SELECTED)] for _ in range(10)]
@@ -114,7 +118,7 @@ def main(pool_size=4):
         pop.append(creator.Individual(comb))
 
     # 遗传算法参数
-    CXPB, MUTPB, NGEN = 0.5, 0.2, 40
+    CXPB, MUTPB, NGEN = 0.5, 0.2, 80
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean)
@@ -123,9 +127,14 @@ def main(pool_size=4):
     stats.register("max", np.max)
 
     pop, log = algorithms.eaSimple(pop, toolbox, CXPB, MUTPB, NGEN, stats=stats, verbose=True)
-    print("----GA begin running----\n")
+    
     best_ind = tools.selBest(pop, 1)[0]
+    print('----GA finished----')
     print("Best Individual = ", best_ind, "\nBest Fitness = ", best_ind.fitness.values)
+
+    print('----full log----')
+    for ind in pop:
+        print("Individual = ", ind, "\nFitness = ", ind.fitness.values)
 
     try:
         plot_progress(log)
@@ -134,5 +143,5 @@ def main(pool_size=4):
         
 
 if __name__ == "__main__":
-    main(6)
+    main()
 

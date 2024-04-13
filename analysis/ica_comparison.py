@@ -30,15 +30,15 @@ print(__doc__)
 # - MEG channel selection
 # - 1-30 Hz band-pass filter
 
-data_path = sample.data_path()
-meg_path = data_path / "MEG" / "sample"
-raw_fname = meg_path / "sample_audvis_filt-0-40_raw.fif"
+vhdr_file = "C:\\Users\\14152\\Desktop\\collaboration_measurement\\data\\LZ.vhdr"
 
-raw = mne.io.read_raw_fif(raw_fname).crop(0, 60).pick("meg").load_data()
+raw = mne.io.read_raw_brainvision(vhdr_file, preload=True).crop(0, 60)
+montage = mne.channels.make_standard_montage('standard_1020')
+raw.set_montage(montage)
+
 
 reject = dict(mag=5e-12, grad=4000e-13)
 raw.filter(1, 30, fir_design="firwin")
-
 
 # %%
 # Define a function that runs ICA on the raw MEG data and plots the components

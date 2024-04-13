@@ -1,11 +1,11 @@
 # coding:utf-8
 import time
 from ctypes import windll
-P = windll.inpoutx64
+
 
 LPT1_addr = 0x8FF8
 LPT2_addr = 0x4FF8
-
+P = windll.inpoutx64
 def ParallelSendCode(code):
     P.Out32(0x8FF8, int(code))
     P.Out32(0x4FF8, int(code))

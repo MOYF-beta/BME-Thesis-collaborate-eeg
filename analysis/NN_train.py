@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
-patience = 10  # 早停耐心值
+patience = 30  # 早停耐心值
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Model(nn.Module):
@@ -154,3 +154,15 @@ class RegressionOpti:
         model.to(device)
         model.busy = False  # 标记模型为闲置
 
+if __name__ == '__main__':
+    from tensorboardX import SummaryWriter
+    from torchviz import make_dot
+
+    m = Model(8,6).to(device)
+    data = (torch.zeros([16,6]).to(device), torch.zeros([16,16]).to(device))
+    with SummaryWriter("./log", comment="sample_model_visualization") as sw:
+        sw.add_graph(m, data)
+    torch.save(m, "./log/m.pt")
+    out = m(data[0], data[1])
+    g = make_dot(out)
+    g.render('m.pdf', view=False)
