@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
-patience = 30  # 早停耐心值
+patience = 50  # 早停耐心值
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Model(nn.Module):
@@ -67,7 +67,7 @@ class RegressionOpti:
         self.n_band = n_band
         self.model_pool = [Model(n_channel, n_band).to(device) for _ in range(n_thread + 1)]
         self.semaphore = Semaphore(n_thread + 1)  # 控制对模型池的访问
-
+        self.cache = {} # 缓存训练结果，加速遗传算法
 
     def _train(self, model, train_data, val_data):
         model.train()  # 设置模型为训练模式
@@ -110,25 +110,31 @@ class RegressionOpti:
         return average_loss
 
 
+
+    
+
     def train_eval(self, data):
-        # 等待获取一个模型
+        # 尝试从缓存中获取结果
+        data_key = self._hash_data(data)
+        if data_key in self.cache:
+            return self.cache[data_key]
+
+        # 如果未缓存，则开始处理
         self.semaphore.acquire()
         model = self._get_idle_model()
         if model is None:
             raise Exception("No idle model available.")
         
-        # 这里是训练和验证的伪代码
         all_losses = []
         for i, (x_conv, adj_matrix, y) in enumerate(data):
-
-            x_conv = torch.tensor(x_conv,dtype=torch.float32).to(device)
-            adj_matrix = torch.tensor(adj_matrix,dtype=torch.float32).to(device)
-            y = torch.tensor(y,dtype=torch.float32).to(device)
+            x_conv = torch.tensor(x_conv, dtype=torch.float32).to(device)
+            adj_matrix = torch.tensor(adj_matrix, dtype=torch.float32).to(device)
+            y = torch.tensor(y, dtype=torch.float32).to(device)
             val_data = (x_conv, adj_matrix, y)
 
-            train_data = [(torch.tensor(x,dtype=torch.float32).to(device),
-                            torch.tensor(adj,dtype=torch.float32).to(device),
-                              torch.tensor(yl,dtype=torch.float32).to(device)) for j, (x, adj, yl) in enumerate(data) if j != i]
+            train_data = [(torch.tensor(x, dtype=torch.float32).to(device),
+                           torch.tensor(adj, dtype=torch.float32).to(device),
+                           torch.tensor(yl, dtype=torch.float32).to(device)) for j, (x, adj, yl) in enumerate(data) if j != i]
             self._train(model, train_data, val_data)
             loss = self._evaluate(model, val_data)
             all_losses.append(loss)
@@ -137,8 +143,13 @@ class RegressionOpti:
         self._reset_model(model)
         self.semaphore.release()
 
-        # 返回所有验证集的loss均值
-        return np.mean(all_losses)
+        # 计算结果并加入缓存
+        average_loss = np.mean(all_losses)
+        self.cache[data_key] = average_loss
+        return average_loss
+
+    def _hash_data(self, data):
+        return hash(str(data))
 
     def _get_idle_model(self):
         # 返回一个空闲的模型，实际实现中需要确保线程安全

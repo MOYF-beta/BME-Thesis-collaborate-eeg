@@ -110,7 +110,7 @@ def main(pool_size=4):
     setup_pool(pool_size)
     print("----GA began running----\n")
     random.seed(64)
-    pop = toolbox.population(n=500)
+    pop = toolbox.population(n=512)
 
     # 指定一些初始组合
     initial_combinations = [[random.randint(0, NUM_OBJECTIVES-1) for _ in range(NUM_SELECTED)] for _ in range(10)]
@@ -118,7 +118,7 @@ def main(pool_size=4):
         pop.append(creator.Individual(comb))
 
     # 遗传算法参数
-    CXPB, MUTPB, NGEN = 0.5, 0.2, 80
+    CXPB, MUTPB, NGEN = 0.7, 0.5, 80
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean)
