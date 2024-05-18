@@ -1,6 +1,13 @@
 from psychopy import core, event
+from twisted.internet import reactor, protocol
+from twisted.internet.protocol import DatagramProtocol
 from game_frontend import Trtris_map
 import threading
+
+class UDP_ctrl_client(DatagramProtocol):
+    pass
+class TCP_key_server(protocol.Protocol):
+    pass # TODO 这里有个问题，需要指定一个客户端做key_server的服务器，可以用task决定
 
 class game_backend:
 
@@ -84,7 +91,7 @@ class game_backend:
             assert not self.game_running
             assert self.group is not None
             self.game_running = True
-            threading.Thread(target=self.single_mode,args=[self.group])
+            threading.Thread(target=self.single_mode_thread,args=[self.group])
             
         elif op == 'start_multi':
             assert not self.game_running
@@ -97,7 +104,7 @@ class game_backend:
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
 
-            threading.Thread(target=self.multi_mode,args=[self.group])
+            threading.Thread(target=self.multi_mode_thread,args=[self.group])
             self.game_running = True
             pass
 
@@ -112,15 +119,16 @@ class game_backend:
                 self.game.game_over = True
             self.game_running = False
 
-    def single_mode(self,group:str):
+    def single_mode_thread(self,group:str):
         while self.game_running:
             self.game = Trtris_map(False,group)
             while not self.game.game_over:
                 pass
             self.game = None
     
-    def multi_mode(self,group:str):
+    def multi_mode_thread(self,group:str):
         self.game = Trtris_map(True,group)
+        # TODO 创建 twisted 实例
         while not self.game.game_over:
             pass
         self.game = None
