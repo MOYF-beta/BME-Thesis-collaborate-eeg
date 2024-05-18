@@ -23,7 +23,7 @@ class Trtris_map:
                 positions.append((x, y))
         return positions
 
-    def __init__(self, seed = -1,
+    def __init__(self,is_multiplayer:bool, group:str, seed = -1,
                  map_size = (10,20),win_shape = (800,800),
                  game_zone_width = 0.7, margin = 0.1) -> None:
         self.win = visual.Window(size=win_shape, winType='pyglet')
@@ -63,8 +63,8 @@ class Trtris_map:
 
 
         self.seed = seed
-        self.group = None # A/B
-        self.is_multiplayer = False
+        self.group = group # A/B
+        self.is_multiplayer = is_multiplayer
         self.multiplayer_update_flag = False # 在多人模式，服务器发送beat信号设置此flag，让游戏进行一次更新
 
     def graphic_step(self): 
@@ -199,6 +199,7 @@ class Trtris_map:
                     self.space_pressed = False
                     break 
             self.game_step()
+            self.multiplayer_update_flag = False
             
  
                     

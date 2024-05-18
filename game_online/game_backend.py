@@ -1,5 +1,7 @@
 from psychopy import core, event
 from game_frontend import Trtris_map
+import threading
+
 class game_backend:
 
     def __init__(self) -> None:
@@ -11,6 +13,7 @@ class game_backend:
         self.task = None # slide/rotate
 
         self.game_running = False
+        self.ip = None # TODO 需要初始化ip
         self.other_player_ip = None
 
         self.slide_direction = 0
@@ -60,28 +63,66 @@ class game_backend:
         # self.slide_direction、self.rotate_direction
         pass
 
-    def handle_server_msg(msg:dict):
-        if not msg.__contains__('op'):
+    def handle_server_msg(self,msg:dict):
+        if 'op' not in msg:
             return
-        if msg['op'] == 'start_single':
-            
-            pass
-        elif msg['op'] == 'end_single':
-            # 设置 Trtris_map 的game_over flag
-            pass
-        elif msg['op'] == 'start_multi':
-            pass
-        elif msg['op'] == 'sync_beat':
-            pass
-        elif msg['op'] == 'end_multi':
-            pass
-        # 处理 start_single
-        # 处理 end_single
-        # 处理 start_multi
-        # 处理 sync_beat
-        # 处理 end_multi
-        pass
+        op = msg['op']
 
-    def main_thread(self):
-        # 检查flag，每新开一局创建一个新的 Trtris_map
-        pass
+        if op == 'contact_me': # 服务器用于发现客户端，客户端向来源地址发送udp包
+            pass #TODO 回复服务器 ack
+
+        elif op == 'tell_ip':
+            assert 'ip' in msg
+            self.ip = msg['ip']
+        
+        elif op == 'arrange_group':
+            assert 'group' in msg
+            self.group = msg['group']
+            # TODO 回复服务器 ack
+
+        elif op == 'start_single':
+            assert not self.game_running
+            assert self.group is not None
+            self.game_running = True
+            threading.Thread(target=self.single_mode,args=[self.group])
+            
+        elif op == 'start_multi':
+            assert not self.game_running
+            assert self.group is not None 
+            # 提取信息
+            assert 'task' in msg
+            assert 'ip' in msg
+            self.task = msg['task']
+            self.other_player_ip = (msg['ip'] - {self.ip}).pop()
+            if 'seed' in msg:
+                self.multi_player_seed = msg['seed']
+
+            threading.Thread(target=self.multi_mode,args=[self.group])
+            self.game_running = True
+            pass
+
+        elif op == 'sync_beat':
+            # 收到来自服务器的更新节拍，给游戏更新flag打true
+            assert self.game_running
+            assert self.game_mode == 'multi'
+            self.game.multiplayer_update_flag = True
+
+        elif op == 'end_single' or op == 'end_multi':
+            if self.game is not None:
+                self.game.game_over = True
+            self.game_running = False
+
+    def single_mode(self,group:str):
+        while self.game_running:
+            self.game = Trtris_map(False,group)
+            while not self.game.game_over:
+                pass
+            self.game = None
+    
+    def multi_mode(self,group:str):
+        self.game = Trtris_map(True,group)
+        while not self.game.game_over:
+            pass
+        self.game = None
+        
+    
