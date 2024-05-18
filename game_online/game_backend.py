@@ -1,13 +1,9 @@
 from psychopy import core, event
-from twisted.internet import reactor, protocol
-from twisted.internet.protocol import DatagramProtocol
 from game_frontend import Trtris_map
+from twisted import 
 import threading
 
-class UDP_ctrl_client(DatagramProtocol):
-    pass
-class TCP_key_server(protocol.Protocol):
-    pass # TODO 这里有个问题，需要指定一个客户端做key_server的服务器，可以用task决定
+
 
 class game_backend:
 
@@ -75,10 +71,10 @@ class game_backend:
             return
         op = msg['op']
 
-        if op == 'contact_me': # 服务器用于发现客户端，客户端向来源地址发送udp包
-            pass #TODO 回复服务器 ack
+        # if op == 'contact_me': # 服务器用于发现客户端，客户端向来源地址发送udp包
+        #     pass #TODO 回复服务器 ack
 
-        elif op == 'tell_ip':
+        if op == 'tell_ip':
             assert 'ip' in msg
             self.ip = msg['ip']
         
