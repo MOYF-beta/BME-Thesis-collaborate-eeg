@@ -26,7 +26,6 @@ class game_backend:
         return ip_list
 
     def __init__(self) -> None:
-        # TODO psychopy core、game、对方服务器地址、AB组别、twisted
         self.game : Trtris_map = None
         self.game_mode = 'single' # single/multi
         self.multi_player_seed = 0
