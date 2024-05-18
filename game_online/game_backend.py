@@ -1,11 +1,29 @@
-from psychopy import core, event
+import time
+import socket
+from psychopy import event
 from game_frontend import Trtris_map
-from twisted import 
+from twisted_network_protocol import game_net
 import threading
 
 
 
 class game_backend:
+
+    slide_direction = 0
+    rotate_direction = 0
+    space_pressed = False
+
+    def get_all_ip_addresses():
+        ip_list = []
+        hostname = socket.gethostname()
+        ip_addresses = socket.getaddrinfo(hostname, None)
+        
+        for addr in ip_addresses:
+            ip = addr[4][0]
+            if ip not in ip_list:
+                ip_list.append(ip)
+        
+        return ip_list
 
     def __init__(self) -> None:
         # TODO psychopy core、game、对方服务器地址、AB组别、twisted
@@ -16,87 +34,89 @@ class game_backend:
         self.task = None # slide/rotate
 
         self.game_running = False
-        self.ip = None # TODO 需要初始化ip
+        self.ip_list = game_backend.get_all_ip_addresses() #获得本机的所有ip地址
         self.other_player_ip = None
 
-        self.slide_direction = 0
-        self.rotate_direction = 0
-        self.space_pressed = False
+        self.net_transport = game_net()
 
     def key_listen_thread(self):
         while self.game_running:
-            self.slide_direction = 0
-            self.rotate_direction = 0
+            game_backend.slide_direction = 0
+            game_backend.rotate_direction = 0
+            game_backend.space_pressed = False
             keys_pressed = event.getKeys()
             if 'z' in keys_pressed:
-                self.slide_direction -= 1
+                game_backend.slide_direction -= 1
             if 'x' in keys_pressed:
-                self.slide_direction += 1
+                game_backend.slide_direction += 1
             if 'comma' in keys_pressed: # <
-                self.rotate_direction += 1
+                game_backend.rotate_direction += 1
             if 'period' in keys_pressed: # >
-                self.rotate_direction -= 1
+                game_backend.rotate_direction -= 1
             if 'space' in keys_pressed: 
-                self.space_pressed = True
+                game_backend.space_pressed = True
 
             if self.game_mode == 'single':
                 # 单人模式下按键时间直接驱动游戏
-                self.game.block_slide(self.slide_direction)
-                self.game.block_rotate(self.rotate_direction)
-                self.game.space_pressed = self.space_pressed
+                self.game.block_slide(game_backend.slide_direction)
+                self.game.block_rotate(game_backend.rotate_direction)
+                self.game.space_pressed = game_backend.space_pressed
+
             elif self.game_mode == 'multi':
                 # 多人模式，属于自己job的按键事件驱动游戏并发送给同伙
-                if self.task == 'slide' and self.slide_direction != 0:
-                    self.game.block_slide(self.slide_direction)
-                    self.send_remote_key(self.slide_direction)
-                elif self.task == 'rotate' and self.rotate_direction != 0:
-                    self.send_remote_key(self.rotate_direction)
-                    self.game.block_rotate(self.rotate_direction)
-                if self.space_pressed:
+                if self.task == 'slide' and game_backend.slide_direction != 0:
+                    self.send_remote_key(game_backend.slide_direction)
+                    self.game.block_slide(game_backend.slide_direction)
+                elif self.task == 'rotate' and game_backend.rotate_direction != 0:
+                    self.send_remote_key(game_backend.rotate_direction)
+                    self.game.block_rotate(game_backend.rotate_direction)
+                if game_backend.space_pressed:
                     # 两人都有权使用空格
-                    self.send_remote_key(self.rotate_direction)
-                    self.game.space_pressed = self.space_pressed
+                    self.send_remote_key(game_backend.space_pressed)
+                self.game.space_pressed = game_backend.space_pressed
             
     def send_remote_key(self):
-        # TODO twisted 发送
-        # 设置game的操作值
-        pass
-    def handle_remote_key():
-        # twisted 信息回调函数，设置game的操作值
-        # self.slide_direction、self.rotate_direction
-        pass
+        data = {}
+        if self.task == 'slide':
+            data['s'] = game_backend.slide_direction
+        elif self.task == 'rotate':
+            data['r'] = game_backend.rotate_direction
+        if game_backend.space_pressed:
+            data['!'] = 1
+        self.net_transport.send_key(data)
+
+    def handle_remote_key(data:dict):
+        if 's' in data.keys:
+            game_backend.slide_direction = data['s']
+        if 'r' in data.keys:
+            game_backend.rotate_direction = data['r']
+        if '!' in data.keys and data['!'] == 1:
+            game_backend.space_pressed = True
 
     def handle_server_msg(self,msg:dict):
         if 'op' not in msg:
             return
         op = msg['op']
-
-        # if op == 'contact_me': # 服务器用于发现客户端，客户端向来源地址发送udp包
-        #     pass #TODO 回复服务器 ack
-
-        if op == 'tell_ip':
-            assert 'ip' in msg
-            self.ip = msg['ip']
         
-        elif op == 'arrange_group':
+        if op == 'ag': # arrange_group
             assert 'group' in msg
             self.group = msg['group']
-            # TODO 回复服务器 ack
+            self.net_transport.resopnd_beat_server(msg['group'])
 
-        elif op == 'start_single':
+        elif op == 'ss': # start_single
             assert not self.game_running
             assert self.group is not None
             self.game_running = True
             threading.Thread(target=self.single_mode_thread,args=[self.group])
             
-        elif op == 'start_multi':
+        elif op == 'sm': # start_multi
             assert not self.game_running
             assert self.group is not None 
             # 提取信息
             assert 'task' in msg
             assert 'ip' in msg
             self.task = msg['task']
-            self.other_player_ip = (msg['ip'] - {self.ip}).pop()
+            self.other_player_ip = (msg['ip'] - self.ip_list).pop()
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
 
@@ -104,13 +124,13 @@ class game_backend:
             self.game_running = True
             pass
 
-        elif op == 'sync_beat':
+        elif op == 'sb': # sync_beat
             # 收到来自服务器的更新节拍，给游戏更新flag打true
             assert self.game_running
             assert self.game_mode == 'multi'
             self.game.multiplayer_update_flag = True
 
-        elif op == 'end_single' or op == 'end_multi':
+        elif op == 'es' or op == 'em': # end_single,end_multi
             if self.game is not None:
                 self.game.game_over = True
             self.game_running = False
@@ -119,14 +139,14 @@ class game_backend:
         while self.game_running:
             self.game = Trtris_map(False,group)
             while not self.game.game_over:
-                pass
+                time.sleep(1)
             self.game = None
     
     def multi_mode_thread(self,group:str):
         self.game = Trtris_map(True,group)
-        # TODO 创建 twisted 实例
+        self.net_transport.run_key_event_transport(self.task,self.other_player_ip)
         while not self.game.game_over:
-            pass
+            time.sleep(1)
         self.game = None
         
     

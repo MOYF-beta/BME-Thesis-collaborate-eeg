@@ -16,19 +16,22 @@ class game_net:
         self.ctrl_port = ctrl_port
         self.key_event_port = key_event_port
         self.key_service = None
+        self.udp_client = None
 
     def run_ctrl_transport(self):
-        reactor.listenMulticast(self.ctrl_port, game_net.UDP_ctrl_client(self.ctrl_handler,self.ctrl_handler))
+        self.udp_client = game_net.UDP_ctrl_client(self.ctrl_handler,self.ctrl_handler)
+        reactor.listenMulticast(self.ctrl_port, self.udp_client)
         reactor.run()
 
-    def run_key_event_transport(self,task:str,host:str):
+    def run_key_event_transport(self,task:str,host_ip:str):
         assert task in ['slide' ,'rotate']
         reactor.stop()
         reactor.__init__() # 重置reactor
-        reactor.listenMulticast(self.ctrl_port, game_net.UDP_ctrl_client(self.ctrl_handler,self.ctrl_handler)) # 重新添加UDP任务
+        self.udp_client = game_net.UDP_ctrl_client(self.ctrl_handler,self.ctrl_handler)
+        reactor.listenMulticast(self.ctrl_port, self.udp_client) # 重新添加UDP任务
         if task == 'slide':
             factory = game_net.TCP_key_client_Factory(self.key_handler)
-            reactor.connectTCP(host, self.key_event_port,factory)
+            reactor.connectTCP((host_ip,self.key_event_port), self.key_event_port,factory)
             self.key_service = factory.get_client()
             assert self.key_service is not None
             time.sleep(1) # 稍微等下对面按键事件服务器创建
@@ -43,6 +46,9 @@ class game_net:
     
     def send_key(self,keys):
         self.key_service.send_data(json.dumps(keys))
+    
+    def resopnd_beat_server(self,data):
+        self.UDP_ctrl_client.send_data(data)
         
 
     # 使用：reactor.listenMulticast(self.ctrl_port, game_net.UDP_ctrl_client())
@@ -51,13 +57,23 @@ class game_net:
             self.callback = callback
             self.server_ip = None
             self.server_port = server_port
+            self.reported_ip = False
+
+        def reported_ip_to_beat_server(self):
+            while not self.reported_ip:
+                self.send_data({})
+                time.sleep(0.5)
 
         def startProtocol(self):
             self.transport.joinGroup('224.0.0.1')
         def datagramReceived(self, data, addr):
+            self.reported_ip_to_beat_server()
             self.server_ip,_ = addr
             data_dict = json.loads(data.decode('utf-8'))
-            self.callback(data_dict)
+            if self.reported_ip:
+                self.callback(data_dict)
+            elif 'ack' in data_dict.keys: # 服务器单播确认已经找到ip
+                self.reported_ip = True
         def send_data(self,data):
             assert self.server_addr is not None
             self.transport.write(str(data),(self.server_ip,self.server_port))
