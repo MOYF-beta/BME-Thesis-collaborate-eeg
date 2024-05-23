@@ -48,7 +48,7 @@ class game_net:
         self.key_service.send_data(json.dumps(keys))
     
     def resopnd_beat_server(self,data):
-        self.UDP_ctrl_client.send_data(data)
+        self.udp_client.send_data(data)
         
 
     # 使用：reactor.listenMulticast(self.ctrl_port, game_net.UDP_ctrl_client())
@@ -61,7 +61,7 @@ class game_net:
 
         def reported_ip_to_beat_server(self):
             while not self.reported_ip:
-                self.send_data({})
+                self.send_data(json.dumps({'ack':'Ciallo~(∠・ω< )⌒★'}).encode('utf-8'))
                 time.sleep(0.5)
 
         def startProtocol(self):

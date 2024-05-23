@@ -1,5 +1,6 @@
 import cmd
 import sys
+import threading
 import numpy as np
 from rich.table import Table
 from rich.console import Console
@@ -29,9 +30,18 @@ class beat_server(cmd.Cmd):
         super().__init__(completekey, stdin, stdout)
         self.players:list[beat_server.player] = []
         self.console = Console()
-        # BUG 这是错的，必须用工厂类造出来
         self.twisted_server = beat_server.UDP_ctrl_client(self.players)
+        reactor_thread = threading.Thread(target=self.start_reactor)
+        reactor_thread.start()
+        
+    def start_reactor(self):
+        reactor.listenMulticast(8000, self.twisted_server)
+        reactor.run(installSignalHandlers=False)  # Avoid conflict with the main thread signal handling
 
+    def run(self):
+        # Create a thread to run the reactor
+        reactor_thread = threading.Thread(target=self.start_reactor)
+        reactor_thread.start()
     def do_ag(self, line):
         tokens = line.split()
         player_ip = tokens[0]
@@ -107,6 +117,14 @@ class beat_server(cmd.Cmd):
         for p in self.players:
             table.add_row(p.ip, p.group or "未指定", p.task or "未指定")
         self.console.print(table)
+    
+    def do_fp(self, line):
+        # list players
+        self.console.print('正在扫描客户端')
+        for _ in range(10):
+            self.twisted_server.send_data_to_UDP_group("Ciallo~(∠・ω< )⌒★")
+            time.sleep(1)
+        self.do_lp('')
         
 
     class UDP_ctrl_client(DatagramProtocol):
@@ -129,15 +147,20 @@ class beat_server(cmd.Cmd):
             client_ip,_ = addr
             clients_addr = [client.ip for client in self.players]
             
-            # 发现并回复客户端
-            if client_ip not in clients_addr:
-                self.players.append(beat_server.player(client_ip))
-                self._send_data(client_ip, 'ack')
-
-            data_dict = json.loads(data.decode('utf-8'))
+            try:
+                data_dict = json.loads(data.decode('utf-8'))
+                # 发现并回复客户端
+                if ''client_ip not in clients_addr:
+                    self.players.append(beat_server.player(client_ip))
+                    self._send_data(client_ip, 'ack')
+            except:
+                self.console.print(Text("没有这个玩家", style="bold red"))
+            
             
         def _send_data(self,ip,data):
-            self.transport.write(str(data),(ip,self.server_port))
+            if data is not str:
+                data = str(data)
+            self.transport.write(data.encode('utf-8'),(ip,self.server_port))
 
         def send_data_to_player(self,player,data):
             self._send_data(player.ip,data)
