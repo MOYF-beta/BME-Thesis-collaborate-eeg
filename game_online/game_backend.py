@@ -101,7 +101,10 @@ class game_backend:
             assert 'group' in msg
             self.group = msg['group']
             self.net_transport.resopnd_beat_server(msg['group'])
-
+        if op == 'at': # arrange_group
+            assert 'task' in msg
+            self.task = msg['task']
+            self.net_transport.resopnd_beat_server(msg['task'])
         elif op == 'ss': # start_single
             assert not self.game_running
             assert self.group is not None
@@ -112,13 +115,10 @@ class game_backend:
             assert not self.game_running
             assert self.group is not None 
             # 提取信息
-            assert 'task' in msg
             assert 'ip' in msg
-            self.task = msg['task']
             self.other_player_ip = (msg['ip'] - self.ip_list).pop()
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
-
             threading.Thread(target=self.multi_mode_thread,args=[self.group])
             self.game_running = True
             pass

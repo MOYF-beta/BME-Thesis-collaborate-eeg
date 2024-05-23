@@ -67,7 +67,8 @@ class game_net:
         def startProtocol(self):
             self.transport.joinGroup('224.0.0.1')
         def datagramReceived(self, data, addr):
-            self.reported_ip_to_beat_server()
+            if not self.reported_ip:
+                self.reported_ip_to_beat_server()
             self.server_ip,_ = addr
             data_dict = json.loads(data.decode('utf-8'))
             if self.reported_ip:
