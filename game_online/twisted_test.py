@@ -3,12 +3,12 @@ import time
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet import reactor
 class UDP_ctrl_client(DatagramProtocol):
-    def __init__(self, server_port=8000, udp_group='224.0.0.1'):
+    def __init__(self, server_port=8000, udp_group='224.0.0.1',):
         self.server_port = server_port
         self.udp_group = udp_group
 
     def startProtocol(self):
-        self.transport.joinGroup(self.udp_group)
+        self.transport.joinGroup(self.udp_group, '10.128.163.25')
 
     def datagramReceived(self, data, addr):
         print(addr)
@@ -28,5 +28,5 @@ if __name__ == '__main__':
     reactor_thread = threading.Thread(target=start_reactor,args=[twisted_server])
     reactor_thread.start()
     time.sleep(1)
-    twisted_server._send_data('10.192.58.230',"hello?")
+    twisted_server._send_data('224.0.0.1',"hello?")
 

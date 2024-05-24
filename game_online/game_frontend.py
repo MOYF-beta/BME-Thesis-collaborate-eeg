@@ -1,6 +1,4 @@
-import argparse
 from psychopy import visual, core, event, monitors
-import yaml
 from tetris_shape import tetris_shapes,tetris_color
 import numpy as np
 class Trtris_map:
@@ -246,11 +244,6 @@ class Trtris_map:
 
         return 0,False
 
-
-def main():
-    map = Trtris_map()
-    map.main_thread()
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='游戏模式')
-    main()
+if __name__ == '__main__':
+    game = Trtris_map(False,'A')
+    game.main_thread()

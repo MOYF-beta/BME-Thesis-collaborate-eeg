@@ -4,8 +4,7 @@ from psychopy import event
 from game_frontend import Trtris_map
 from twisted_network_protocol import game_net
 import threading
-
-
+import multiprocessing
 
 class game_backend:
 
@@ -36,7 +35,12 @@ class game_backend:
         self.ip_list = game_backend.get_all_ip_addresses() #获得本机的所有ip地址
         self.other_player_ip = None
 
-        self.net_transport = game_net()
+        self.net_transport = game_net(self.handle_server_msg,self.handle_remote_key)
+    
+    def run(self):
+        self.net_transport.run_ctrl_transport()
+        while True:
+            time.sleep(1)
 
     def key_listen_thread(self):
         while self.game_running:
@@ -100,16 +104,17 @@ class game_backend:
         if op == 'ag': # arrange_group
             assert 'group' in msg
             self.group = msg['group']
-            self.net_transport.resopnd_beat_server(msg['group'])
-        if op == 'at': # arrange_group
+            # self.net_transport.resopnd_beat_server(msg['group'])
+        elif op == 'at': # arrange_group
             assert 'task' in msg
             self.task = msg['task']
-            self.net_transport.resopnd_beat_server(msg['task'])
+            # self.net_transport.resopnd_beat_server(msg['task'])
         elif op == 'ss': # start_single
             assert not self.game_running
             assert self.group is not None
             self.game_running = True
-            threading.Thread(target=self.single_mode_thread,args=[self.group])
+            t = threading.Thread(target=self.single_mode_thread,args=[self.group])
+            t.run()
             
         elif op == 'sm': # start_multi
             assert not self.game_running
@@ -119,8 +124,9 @@ class game_backend:
             self.other_player_ip = (msg['ip'] - self.ip_list).pop()
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
-            threading.Thread(target=self.multi_mode_thread,args=[self.group])
+            t = threading.Thread(target=self.multi_mode_thread,args=[self.group])
             self.game_running = True
+            t.run()
             pass
 
         elif op == 'sb': # sync_beat
@@ -137,9 +143,10 @@ class game_backend:
     def single_mode_thread(self,group:str):
         while self.game_running:
             self.game = Trtris_map(False,group)
-            while not self.game.game_over:
-                time.sleep(1)
-            self.game = None
+            p = multiprocessing.Process(target=self.game.main_thread)
+            p.start()
+            p.join()
+        self.game = None
     
     def multi_mode_thread(self,group:str):
         self.game = Trtris_map(True,group)
@@ -149,3 +156,7 @@ class game_backend:
         self.game = None
         
     
+if __name__ == '__main__':
+
+    game = game_backend()
+    game.run()
