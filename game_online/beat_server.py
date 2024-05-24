@@ -150,11 +150,11 @@ class beat_server(cmd.Cmd):
             try:
                 data_dict = json.loads(data.decode('utf-8'))
                 # 发现并回复客户端
-                if ''client_ip not in clients_addr:
+                if client_ip not in clients_addr:
                     self.players.append(beat_server.player(client_ip))
                     self._send_data(client_ip, 'ack')
             except:
-                self.console.print(Text("没有这个玩家", style="bold red"))
+                self.console.print(Text(f"{addr}:{data.decode('utf-8')}", style="bold red"))
             
             
         def _send_data(self,ip,data):
