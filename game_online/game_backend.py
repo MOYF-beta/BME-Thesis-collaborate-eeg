@@ -1,10 +1,8 @@
 import time
 import socket
-from psychopy import event
-from game_frontend import Trtris_map
+from typing import Callable
+from psychopy import core,event
 from twisted_network_protocol import game_net
-import threading
-import multiprocessing
 
 class game_backend:
 
@@ -24,9 +22,11 @@ class game_backend:
         
         return ip_list
 
-    def __init__(self) -> None:
-        self.game : Trtris_map = None
-        self.game_mode = 'single' # single/multi
+    def __init__(self,callbacks:dict[str,Callable]) -> None:
+
+        self.callbacks = callbacks
+
+        self.game_mode = None # single/multi
         self.multi_player_seed = 0
         self.group = None # A/B
         self.task = None # slide/rotate
@@ -61,22 +61,22 @@ class game_backend:
 
             if self.game_mode == 'single':
                 # 单人模式下按键时间直接驱动游戏
-                self.game.block_slide(game_backend.slide_direction)
-                self.game.block_rotate(game_backend.rotate_direction)
-                self.game.space_pressed = game_backend.space_pressed
+                self.callbacks['block_slide'](game_backend.slide_direction)
+                self.callbacks['block_rotate'](game_backend.rotate_direction)
+                self.callbacks['space_pressed'](game_backend.space_pressed)
 
             elif self.game_mode == 'multi':
                 # 多人模式，属于自己job的按键事件驱动游戏并发送给同伙
                 if self.task == 'slide' and game_backend.slide_direction != 0:
                     self.send_remote_key(game_backend.slide_direction)
-                    self.game.block_slide(game_backend.slide_direction)
+                    self.callbacks['block_slide'](game_backend.slide_direction)
                 elif self.task == 'rotate' and game_backend.rotate_direction != 0:
                     self.send_remote_key(game_backend.rotate_direction)
-                    self.game.block_rotate(game_backend.rotate_direction)
+                    self.callbacks['block_rotate'](game_backend.rotate_direction)
                 if game_backend.space_pressed:
                     # 两人都有权使用空格
                     self.send_remote_key(game_backend.space_pressed)
-                self.game.space_pressed = game_backend.space_pressed
+                self.callbacks['space_pressed'] = game_backend.space_pressed
             
     def send_remote_key(self):
         data = {}
@@ -113,8 +113,7 @@ class game_backend:
             assert not self.game_running
             assert self.group is not None
             self.game_running = True
-            t = threading.Thread(target=self.single_mode_thread,args=[self.group])
-            t.run()
+            self.callbacks['start_game'](False)
             
         elif op == 'sm': # start_multi
             assert not self.game_running
@@ -124,39 +123,14 @@ class game_backend:
             self.other_player_ip = (msg['ip'] - self.ip_list).pop()
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
-            t = threading.Thread(target=self.multi_mode_thread,args=[self.group])
             self.game_running = True
-            t.run()
-            pass
+            self.callbacks['start_game'](True)
 
         elif op == 'sb': # sync_beat
             # 收到来自服务器的更新节拍，给游戏更新flag打true
             assert self.game_running
             assert self.game_mode == 'multi'
-            self.game.multiplayer_update_flag = True
+            self.callbacks['update_multiplayer_flag']
 
         elif op == 'es' or op == 'em': # end_single,end_multi
-            if self.game is not None:
-                self.game.game_over = True
             self.game_running = False
-
-    def single_mode_thread(self,group:str):
-        while self.game_running:
-            self.game = Trtris_map(False,group)
-            p = multiprocessing.Process(target=self.game.main_thread)
-            p.start()
-            p.join()
-        self.game = None
-    
-    def multi_mode_thread(self,group:str):
-        self.game = Trtris_map(True,group)
-        self.net_transport.run_key_event_transport(self.task,self.other_player_ip)
-        while not self.game.game_over:
-            time.sleep(1)
-        self.game = None
-        
-    
-if __name__ == '__main__':
-
-    game = game_backend()
-    game.run()

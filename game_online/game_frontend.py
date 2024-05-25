@@ -1,7 +1,54 @@
-from psychopy import visual, core, event, monitors
+from psychopy import visual, core
+from game_backend import game_backend
 from tetris_shape import tetris_shapes,tetris_color
 import numpy as np
+import threading
+
 class Trtris_map:
+
+    def callback_set_gamemode(self,is_multiplayer:bool):
+        self.is_multiplayer = is_multiplayer
+    
+    def callback_set_seed(self,seed:int):
+        self.seed = seed
+    
+    def callback_set_group(self,group:str):
+        assert group == 'A' or group == 'B'
+        self.group = group
+    
+    def callback_space_pressed(self,space_pressed:bool):
+        self.space_pressed = space_pressed
+    
+    def game_grapic_init(self):
+        # convoluted shit
+        self.game_step_count = 0
+        self.mat_logic = np.zeros(self.map_size,dtype=np.int8)
+        self.mat_color = np.zeros(self.map_size,dtype=np.int8)
+        self.game_score = 0
+        self.gamespeed = 1
+        self.game_over = False
+        self.pack_no = 0
+        self.pack = np.array(range(7),dtype=np.int8)
+        self.slide_direction = 0
+        self.rotate_direction = 0
+        self.space_pressed = False
+        self.game_score_text.text = f'Score: {self.game_score}'
+        self.game_speed_text.text = f'Speed: {self.gamespeed}'
+    
+    def backend_ctrl_param_init(self):
+        self.slide_direction = 0
+        self.rotate_direction = 0
+        self.space_pressed = False
+    
+    def start_game(self,is_multiplayer:bool):
+        self.is_multiplayer = is_multiplayer
+        self.game_running = True
+    
+    def end_game(self):
+        self.game_running = False
+    
+    def callback_update_multiplayer_flag(self):
+        self.multiplayer_update_flag = True
 
     def _get_positions_gameplay(self, map_size, rect_size, margin):
         positions = []
@@ -21,14 +68,10 @@ class Trtris_map:
                 positions.append((x, y))
         return positions
 
-    def __init__(self,is_multiplayer:bool, group:str, seed = -1,
-                 map_size = (10,20),win_shape = (800,800),
+    def __init__(self, map_size = (10,20),win_shape = (800,800),
                  game_zone_width = 0.7, margin = 0.1) -> None:
         self.win = visual.Window(size=win_shape, winType='pyglet')
         self.map_size = map_size
-        self.mat_render = []
-        self.mat_logic = np.zeros(map_size,dtype=np.int8)
-        self.mat_color = np.zeros(map_size,dtype=np.int8)
         rect_size = (game_zone_width - 2 * margin)/map_size[0] * 2 
         nElements = map_size[0] * map_size[1]
         self.gameplay_area = visual.ElementArrayStim(win=self.win, 
@@ -50,20 +93,25 @@ class Trtris_map:
         self.game_score_text = visual.TextStim(win=self.win, text='Score: 0', pos=(0.6, 0.2-rect_size), color=(1, 1, 1))
         self.game_speed_text = visual.TextStim(win=self.win, text='Speed: 0.5', pos=(0.6, 0.2-rect_size*2), color=(1, 1, 1))
 
-        self.game_score = 0
-        self.gamespeed = 1
-        self.game_over = False
-        self.pack_no = 0
-        self.pack = np.array(range(7),dtype=np.int8)
-        self.game_step_count = 0
-        self.space_pressed = False
-        self.next_block_no = int(self.pack[0])
-
-
-        self.seed = seed
-        self.group = group # A/B
-        self.is_multiplayer = is_multiplayer
+        self.seed = None
+        self.group = None # A/B
+        self.is_multiplayer = None
         self.multiplayer_update_flag = False # 在多人模式，服务器发送beat信号设置此flag，让游戏进行一次更新
+        self.game_running = False
+        self.callbacks = {
+            'set_gamemode':self.callback_set_gamemode,
+            'set_group':self.callback_set_group,
+            'set_seed':self.callback_set_seed,
+            'space_pressed':self.callback_space_pressed,
+            'block_slide':self.block_slide,
+            'block_rotate':self.block_rotate,
+            'start_game':self.start_game,
+            'end_game':self.end_game,
+            'update_multiplayer_flag':self.callback_update_multiplayer_flag
+        }
+        self.game_grapic_init()
+        self.backend_ctrl_param_init()
+        self.backend = game_backend(self.callbacks)
 
     def graphic_step(self): 
         map_colors = [tetris_color[self.mat_color[i, j]] 
@@ -179,8 +227,22 @@ class Trtris_map:
                 self.mat_color[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_color
                 self.graphic_step()
 
-
     def main_thread(self):
+        # 首先启动后端
+        t_backend = threading.Thread(target=self.backend.run)
+        t_backend.start()
+        while True:
+            if not self.game_running:
+                continue # 高速忙等，确保收到后端信息立刻开始
+            self.game_grapic_init()
+            self.backend_ctrl_param_init()
+            if self.is_multiplayer:
+                self.game_round() # 多人模式只开一局
+            else:
+                while self.game_running:
+                    self.game_round() # 单人模式在收到停止信号之前一直进行
+
+    def game_round(self):
         # 设置种子，在多人模式下使得种子相同
         seed = self.seed if self.is_multiplayer else np.random.randint(0,233333) 
         np.random.seed(seed)
@@ -196,12 +258,12 @@ class Trtris_map:
                     core.wait(0.05) # 按下空格时快进
                     self.space_pressed = False
                     break 
+                if not self.is_multiplayer:
+                    # 单人模式，自行计时
+                    self.multiplayer_update_flag = core.getTime() - t_begin >= iter_time
             self.game_step()
             self.multiplayer_update_flag = False
             
- 
-                    
-    
     def mat_iter(self):
 
         def block_touchdown():
@@ -245,5 +307,5 @@ class Trtris_map:
         return 0,False
 
 if __name__ == '__main__':
-    game = Trtris_map(False,'A')
+    game = Trtris_map()
     game.main_thread()
