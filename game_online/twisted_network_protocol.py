@@ -32,17 +32,19 @@ class game_net:
         # reactor.__init__() # 重置reactor
         # self.udp_client = game_net.UDP_ctrl_client(self.ctrl_handler)
         # reactor.listenUDP(net_config.ctrl_port, self.udp_client) # 重新添加UDP任务 BUG 端口似乎还没有释放
-        
+        reactor.disconnectAll()
+        reactor.__init__()
+        reactor.listenUDP(net_config.ctrl_port, self.udp_client)
         factory = game_net.TCP_key_protocol_Factory(self.key_handler)
         if task == 'slide':
-            time.sleep(0.5) # 稍微等下对面按键事件服务器创建
+            time.sleep(0.4) # 稍微等下对面按键事件服务器创建
             reactor.connectTCP(host_ip,self.key_event_port, factory)
         else:
             reactor.listenTCP(self.key_event_port, factory)
-        self.key_service = factory.get_client()
-        assert self.key_service is not None
-
         reactor.run()
+        time.sleep(0.1)
+        self.key_service = factory.get_client()
+        assert self.key_service is not None, "无法连接另一位玩家。请检查网络连通性以及防火墙配置，放行tcp 8002端口"
         self.key_service_on = True
     
     def send_key(self,keys):

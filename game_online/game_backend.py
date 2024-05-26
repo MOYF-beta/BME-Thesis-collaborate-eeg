@@ -134,9 +134,8 @@ class game_backend:
 
         elif op == 'sb': # sync_beat
             # 收到来自服务器的更新节拍，给游戏更新flag打true
-            assert self.game_running
-            assert self.game_mode == 'multi'
-            self.callbacks['update_multiplayer_flag']()
+            if self.game_running and self.game_mode == 'multi':
+                self.callbacks['update_multiplayer_flag']()
 
         elif op == 'es' or op == 'em': # end_single,end_multi
             self.game_running = False
