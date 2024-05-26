@@ -32,17 +32,15 @@ class game_net:
         # reactor.__init__() # 重置reactor
         # self.udp_client = game_net.UDP_ctrl_client(self.ctrl_handler)
         # reactor.listenUDP(net_config.ctrl_port, self.udp_client) # 重新添加UDP任务 BUG 端口似乎还没有释放
+        
+        factory = game_net.TCP_key_protocol_Factory(self.key_handler)
         if task == 'slide':
-            factory = game_net.TCP_key_client_Factory(self.key_handler)
-            reactor.connectTCP(host_ip,self.key_event_port, factory)
-            self.key_service = factory.get_client()
-            assert self.key_service is not None
             time.sleep(0.5) # 稍微等下对面按键事件服务器创建
+            reactor.connectTCP(host_ip,self.key_event_port, factory)
         else:
-            factory = game_net.TCP_key_server_Factory(self.key_handler)
             reactor.listenTCP(self.key_event_port, factory)
-            self.key_service = factory.get_client()
-            assert self.key_service is not None
+        self.key_service = factory.get_client()
+        assert self.key_service is not None
 
         reactor.run()
         self.key_service_on = True
@@ -85,22 +83,11 @@ class game_net:
             assert self.server_ip is not None
             self.transport.write(str(data).encode('utf-8'),(self.server_ip,self.server_port))
 
-    # 按键事件交换服务器
-    class TCP_key_server(protocol.Protocol):
-        def __init__(self, callback:Callable[[dict],None]):
+    # 按键事件交换协议
+    class TCP_key_protocol(protocol.Protocol):
+        def __init__(self, callback:Callable[[dict],None],factory):
             self.callback = callback
-
-        def dataReceived(self, data):
-            data_dict = json.loads(data.decode('utf-8'))
-            self.callback(data_dict)
-
-        def send_data(self,data):
-            self.transport.write(str(data))
-
-    # 按键事件交换客户端
-    class TCP_key_client(protocol.Protocol):
-        def __init__(self, callback:Callable[[dict],None]):
-            self.callback = callback
+            factory.client = self
 
         def connectionMade(self):
             pass
@@ -111,25 +98,16 @@ class game_net:
 
         def send_data(self,data):
             self.transport.write(str(data))
+
     
-    class TCP_key_server_Factory(protocol.Factory):
+    class TCP_key_protocol_Factory(protocol.ClientFactory):
         def __init__(self, callback:Callable[[dict],None]):
             self.callback = callback
-            self.client:game_net.TCP_key_client = None
+            self.client:game_net.TCP_key_protocol = None
         def get_client(self):
             return self.client
         def buildProtocol(self, callback):
-            self.client = game_net.TCP_key_client(callback)
-            return self.client
-    
-    class TCP_key_client_Factory(protocol.ClientFactory):
-        def __init__(self, callback:Callable[[dict],None]):
-            self.callback = callback
-            self.client:game_net.TCP_key_client = None
-        def get_client(self):
-            return self.client
-        def buildProtocol(self, callback):
-            self.client = game_net.TCP_key_client(callback)
+            self.client = game_net.TCP_key_protocol(callback,self)
             return self.client
 
         def clientConnectionFailed(self, connector, reason):
