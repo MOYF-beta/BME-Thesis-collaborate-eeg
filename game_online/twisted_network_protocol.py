@@ -100,7 +100,7 @@ class game_net:
                 data_dict = json.loads(data.decode('utf-8'))
                 self.callback(data_dict)
             except:
-                print('err while decode key event')
+                print(f'err while decode key event{data}')
 
         def send_data(self,data):
             self.transport.write(str(data).encode('utf-8'))
