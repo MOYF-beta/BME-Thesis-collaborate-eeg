@@ -82,8 +82,9 @@ class game_net:
 
     # 按键事件交换协议
     class UDP_key_protocol(protocol.Protocol):
-        def __init__(self, callback:Callable[[dict],None]):
+        def __init__(self, callback:Callable[[dict],None], other_player_ip):
             self.callback = callback
+            self.other_player_ip = other_player_ip
         def dataReceived(self, data):
             try:
                 data_dict = json.loads(data.decode('utf-8'))
@@ -92,6 +93,6 @@ class game_net:
                 print(f'err while decode key event{data}')
 
         def send_data(self,data):
-            self.transport.write(str(data).encode('utf-8'))
+            self.transport.write(str(data).encode('utf-8'),(self.other_player_ip,net_config.p2p_port))
 
     
