@@ -37,13 +37,13 @@ class game_net:
         reactor.listenUDP(net_config.ctrl_port, self.udp_client)
         factory = game_net.TCP_key_protocol_Factory(self.key_handler)
         if task == 'slide':
-            time.sleep(0.4) # 稍微等下对面按键事件服务器创建
+            time.sleep(1) # 稍微等下对面按键事件服务器创建
             reactor.connectTCP(host_ip,self.key_event_port, factory)
         else:
             reactor.listenTCP(self.key_event_port, factory)
         reactor_thread = threading.Thread(target=reactor.run)
         reactor_thread.start()
-        time.sleep(0.1)
+        time.sleep(1)
         self.key_service = factory.get_client()
         assert self.key_service is not None, "无法连接另一位玩家。请检查网络连通性以及防火墙配置，放行tcp 8002端口"
         self.key_service_on = True
