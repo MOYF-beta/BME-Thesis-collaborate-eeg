@@ -96,8 +96,11 @@ class game_net:
             pass
 
         def dataReceived(self, data):
-            data_dict = json.loads(data.decode('utf-8'))
-            self.callback(data_dict)
+            try:
+                data_dict = json.loads(data.decode('utf-8'))
+                self.callback(data_dict)
+            except:
+                print('err while decode key event')
 
         def send_data(self,data):
             self.transport.write(str(data).encode('utf-8'))
