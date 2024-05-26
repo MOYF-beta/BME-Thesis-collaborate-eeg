@@ -21,17 +21,17 @@ class game_net:
 
     def run_ctrl_transport(self):
         self.udp_client = game_net.UDP_ctrl_client(self.ctrl_handler)
-        reactor.listenUDP(net_config.ctrl_port, self.udp_client) # TODO 改为听指定端口，之前那个不指定端口是错的
+        reactor.listenUDP(net_config.ctrl_port, self.udp_client)
         reactor_thread = threading.Thread(target=reactor.run)
         reactor_thread.start()
         self.udp_client.reported_ip_to_beat_server()
 
     def run_key_event_transport(self,task:str,host_ip:str):
         assert task in ['slide' ,'rotate']
-        reactor.stop()
-        reactor.__init__() # 重置reactor
-        self.udp_client = game_net.UDP_ctrl_client(self.ctrl_handler)
-        reactor.listenUDP(net_config.ctrl_port, self.udp_client) # 重新添加UDP任务
+        # reactor.stop()
+        # reactor.__init__() # 重置reactor
+        # self.udp_client = game_net.UDP_ctrl_client(self.ctrl_handler)
+        # reactor.listenUDP(net_config.ctrl_port, self.udp_client) # 重新添加UDP任务 BUG 端口似乎还没有释放
         if task == 'slide':
             factory = game_net.TCP_key_client_Factory(self.key_handler)
             reactor.connectTCP((host_ip,self.key_event_port), self.key_event_port,factory)
