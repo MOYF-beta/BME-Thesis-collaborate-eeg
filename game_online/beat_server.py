@@ -13,6 +13,8 @@ from twisted.internet import reactor, protocol
 from twisted.internet.protocol import DatagramProtocol
 import json
 
+from psychopy import core
+
 class beat_server(cmd.Cmd):
     
     class player:
@@ -128,6 +130,8 @@ class beat_server(cmd.Cmd):
             self.ctrl_port = net_config.ctrl_port
             self.udp_group = udp_group
             self.console = Console()
+            self.multiplayer_running : bool = False
+            self.beat_thread : threading.Thread = None
 
         def reported_ip_to_beat_server(self):
             while not self.reported_ip:
@@ -223,16 +227,26 @@ class beat_server(cmd.Cmd):
                 'seed':np.random.randint(0,23333)
             }))
             self.console.print(f'{[player.ip for player in self.players]}启动多人模式')
+            self.beat_thread = threading.Thread(target=self.sync_beat)
+            self.multiplayer_running = True
+            self.beat_thread.start()
 
         def sync_beat(self):
-            self.send_data_to_player_s(self.players,json.dumps({
-                'op':'sb'
-            }))
+            while self.multiplayer_running:
+                time = core.getTime()
+                while core.getTime() - time <= 0.5:
+                    pass
+                self.send_data_to_player_s(self.players,json.dumps({
+                    'op':'sb'
+                }))
         
         def end_multi(self):
             self.send_data_to_player_s(self.players,json.dumps({
                 'op':'em'
             }))
+            self.multiplayer_running = False
+            if self.beat_thread is not None:
+                self.beat_thread = None
             self.console.print(f'{[player.ip for player in self.players]}停止多人模式')
 
 if __name__ == '__main__':
