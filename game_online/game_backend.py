@@ -85,7 +85,7 @@ class game_backend:
         if need_send:
             self.net_transport.send_key(data)
 
-    def handle_remote_key(data:dict):
+    def handle_remote_key(self,data:dict):
         if 's' in data.keys:
             game_backend.slide_direction = data['s']
         if 'r' in data.keys:
