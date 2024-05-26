@@ -72,13 +72,17 @@ class game_backend:
             
     def send_remote_key(self):
         data = {}
-        if self.task == 'slide':
+        need_send = False
+        if self.task == 'slide' and game_backend.slide_direction != 0:
             data['s'] = game_backend.slide_direction
-        elif self.task == 'rotate':
+            need_send = True
+        elif self.task == 'rotate' and game_backend.rotate_direction != 0:
             data['r'] = game_backend.rotate_direction
+            need_send = True
         if game_backend.space_pressed:
             data['!'] = 1
-        if data != {}:
+            need_send = True
+        if need_send:
             self.net_transport.send_key(data)
 
     def handle_remote_key(data:dict):
