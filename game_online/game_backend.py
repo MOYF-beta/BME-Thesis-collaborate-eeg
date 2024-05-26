@@ -86,11 +86,11 @@ class game_backend:
             self.net_transport.send_key(data)
 
     def handle_remote_key(self,data:dict):
-        if 's' in data.keys:
+        if 's' in data.keys():
             game_backend.slide_direction = data['s']
-        if 'r' in data.keys:
+        if 'r' in data.keys():
             game_backend.rotate_direction = data['r']
-        if '!' in data.keys and data['!'] == 1:
+        if '!' in data.keys() and data['!'] == 1:
             game_backend.space_pressed = True
         
 
