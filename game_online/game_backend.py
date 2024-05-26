@@ -47,14 +47,16 @@ class game_backend:
         game_backend.rotate_direction = 0
         game_backend.space_pressed = False
         keys_pressed = event.getKeys()
-        if 'z' in keys_pressed:
-            game_backend.slide_direction -= 1
-        if 'x' in keys_pressed:
-            game_backend.slide_direction += 1
-        if 'comma' in keys_pressed: # <
-            game_backend.rotate_direction += 1
-        if 'period' in keys_pressed: # >
-            game_backend.rotate_direction -= 1
+        if self.game_mode == 'single' or self.task == 'slide':
+            if 'z' in keys_pressed:
+                game_backend.slide_direction -= 1
+            if 'x' in keys_pressed:
+                game_backend.slide_direction += 1
+        if self.game_mode == 'single' or self.task == 'rotate':
+            if 'comma' in keys_pressed: # <
+                game_backend.rotate_direction += 1
+            if 'period' in keys_pressed: # >
+                game_backend.rotate_direction -= 1
         if 'space' in keys_pressed: 
             game_backend.space_pressed = True
         if(len(keys_pressed)>0):
