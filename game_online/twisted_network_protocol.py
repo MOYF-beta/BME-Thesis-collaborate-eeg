@@ -34,7 +34,7 @@ class game_net:
         # reactor.listenUDP(net_config.ctrl_port, self.udp_client) # 重新添加UDP任务 BUG 端口似乎还没有释放
         if task == 'slide':
             factory = game_net.TCP_key_client_Factory(self.key_handler)
-            reactor.connectTCP((host_ip,self.key_event_port), self.key_event_port,factory)
+            reactor.connectTCP(host_ip,self.key_event_port, self.key_event_port,factory)
             self.key_service = factory.get_client()
             assert self.key_service is not None
             time.sleep(0.5) # 稍微等下对面按键事件服务器创建
