@@ -37,7 +37,7 @@ class game_net:
             reactor.connectTCP((host_ip,self.key_event_port), self.key_event_port,factory)
             self.key_service = factory.get_client()
             assert self.key_service is not None
-            time.sleep(1) # 稍微等下对面按键事件服务器创建
+            time.sleep(0.5) # 稍微等下对面按键事件服务器创建
         else:
             factory = game_net.TCP_key_server_Factory(self.key_handler)
             reactor.listenTCP(self.key_event_port, factory)

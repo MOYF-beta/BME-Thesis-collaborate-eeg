@@ -232,6 +232,7 @@ class beat_server(cmd.Cmd):
             self.beat_thread.start()
 
         def sync_beat(self):
+            core.wait(1) # 留时间让客户端建立p2p连接
             while self.multiplayer_running:
                 time = core.getTime()
                 while core.getTime() - time <= 0.5:

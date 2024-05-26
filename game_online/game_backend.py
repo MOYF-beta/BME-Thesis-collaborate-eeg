@@ -123,6 +123,10 @@ class game_backend:
             assert 'ip' in msg
             self.game_mode = 'multi'
             self.other_player_ip = (set(msg['ip']) - set(self.ip_list)).pop()
+
+            if self.net_transport.key_service is None:
+                self.net_transport.run_key_event_transport()
+
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
             self.game_running = True
