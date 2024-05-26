@@ -68,14 +68,14 @@ class game_backend:
         elif self.game_mode == 'multi':
             # 多人模式，属于自己job的按键事件驱动游戏并发送给同伙
             if self.task == 'slide' and game_backend.slide_direction != 0:
-                self.send_remote_key(game_backend.slide_direction)
+                self.send_remote_key()
                 self.callbacks['block_slide'](game_backend.slide_direction)
             elif self.task == 'rotate' and game_backend.rotate_direction != 0:
-                self.send_remote_key(game_backend.rotate_direction)
+                self.send_remote_key()
                 self.callbacks['block_rotate'](game_backend.rotate_direction)
             if game_backend.space_pressed:
                 # 两人都有权使用空格
-                self.send_remote_key(game_backend.space_pressed)
+                self.send_remote_key()
             self.callbacks['space_pressed'] = game_backend.space_pressed
             
     def send_remote_key(self):
