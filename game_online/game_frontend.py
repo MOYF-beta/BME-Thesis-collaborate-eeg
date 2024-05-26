@@ -16,8 +16,8 @@ class Trtris_map:
         assert group == 'A' or group == 'B'
         self.group = group
     
-    def callback_space_pressed(self,space_pressed:bool):
-        self.space_pressed = space_pressed
+    def callback_space_pressed(self):
+        self.space_pressed = True
     
     def game_grapic_init(self):
         # convoluted shit
@@ -148,7 +148,6 @@ class Trtris_map:
                                                           self.map_size[1] - new_height:self.map_size[1]] != 0)):
                 self.mat_logic[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = 2 * new_blocks_mask
                 self.mat_color[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = new_blocks_color * new_blocks_mask
-                self.space_pressed = True
             else:
                 self.game_over = True
 
