@@ -59,24 +59,14 @@ class game_backend:
             game_backend.space_pressed = True
         if(len(keys_pressed)>0):
             print(keys_pressed)
-        if self.game_mode == 'single':
-            # 单人模式下按键时间直接驱动游戏
-            self.callbacks['block_slide'](game_backend.slide_direction)
-            self.callbacks['block_rotate'](game_backend.rotate_direction)
-            self.callbacks['space_pressed'](game_backend.space_pressed)
 
-        elif self.game_mode == 'multi':
+        if self.game_mode == 'multi':
             # 多人模式，属于自己job的按键事件驱动游戏并发送给同伙
-            if self.task == 'slide' and game_backend.slide_direction != 0:
-                self.send_remote_key()
-                self.callbacks['block_slide'](game_backend.slide_direction)
-            elif self.task == 'rotate' and game_backend.rotate_direction != 0:
-                self.send_remote_key()
-                self.callbacks['block_rotate'](game_backend.rotate_direction)
-            if game_backend.space_pressed:
-                # 两人都有权使用空格
-                self.send_remote_key()
-            self.callbacks['space_pressed'] = game_backend.space_pressed
+            self.send_remote_key()
+        self.callbacks['block_slide'](game_backend.slide_direction)
+        self.callbacks['block_rotate'](game_backend.rotate_direction)
+        if game_backend.space_pressed:
+            self.callbacks['space_pressed']()
             
     def send_remote_key(self):
         data = {}
@@ -95,6 +85,7 @@ class game_backend:
             game_backend.rotate_direction = data['r']
         if '!' in data.keys and data['!'] == 1:
             game_backend.space_pressed = True
+        
 
     def handle_server_msg(self,msg:dict):
         if 'op' not in msg:
