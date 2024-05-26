@@ -35,8 +35,6 @@ class game_net:
         reactor.listenUDP(net_config.p2p_port, self.udp_key)
         reactor_thread = threading.Thread(target=reactor.run)
         reactor_thread.start()
-        time.sleep(1)
-        self.udp_key
     
     def send_key(self,keys):
         self.udp_key.send_data(json.dumps(keys))
@@ -57,7 +55,6 @@ class game_net:
                 time.sleep(0.5)
 
         def startProtocol(self):
-            # self.transport.joinGroup('224.0.0.1')
             pass
 
         def datagramReceived(self, data, addr):
@@ -81,7 +78,9 @@ class game_net:
         def __init__(self, callback:Callable[[dict],None], other_player_ip):
             self.callback = callback
             self.other_player_ip = other_player_ip
-        def dataReceived(self, data):
+        def startProtocol(self):
+            pass
+        def datagramReceived(self, data, addr):
             try:
                 data_dict = json.loads(data.decode('utf-8'))
                 self.callback(data_dict)
@@ -89,6 +88,7 @@ class game_net:
                 print(f'err while decode key event{data}')
 
         def send_data(self,data):
+            assert self.other_player_ip is not None
             self.transport.write(str(data).encode('utf-8'),(self.other_player_ip,net_config.p2p_port))
 
     
