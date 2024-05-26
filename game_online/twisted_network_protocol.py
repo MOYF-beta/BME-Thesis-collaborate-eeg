@@ -41,7 +41,8 @@ class game_net:
             reactor.connectTCP(host_ip,self.key_event_port, factory)
         else:
             reactor.listenTCP(self.key_event_port, factory)
-        reactor.run()
+        reactor_thread = threading.Thread(target=reactor.run)
+        reactor_thread.start()
         time.sleep(0.1)
         self.key_service = factory.get_client()
         assert self.key_service is not None, "无法连接另一位玩家。请检查网络连通性以及防火墙配置，放行tcp 8002端口"
