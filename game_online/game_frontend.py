@@ -254,19 +254,18 @@ class Trtris_map:
                 # 单人模式，自行计时
                 self.multiplayer_update_flag = core.getTime() - t_begin >= iter_time
             while not self.multiplayer_update_flag:
-                # 获取按键状态
                 self.backend.get_key_status()
                 # 等待到达更新时间
                 if self.space_pressed:
-                    core.wait(0.05) # 按下空格时快进
                     self.space_pressed = False
                     break 
+            if self.multiplayer_update_flag:
                 if not self.is_multiplayer:
                     # 单人模式，自行计时
                     self.multiplayer_update_flag = core.getTime() - t_begin >= iter_time
                 else:
                     self.multiplayer_update_flag = False
-            self.game_step()
+                self.game_step()
             
             
     def mat_iter(self):
