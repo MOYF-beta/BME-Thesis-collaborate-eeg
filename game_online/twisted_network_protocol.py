@@ -28,13 +28,9 @@ class game_net:
 
     def run_key_event_transport(self,task:str,host_ip:str):
         assert task in ['slide' ,'rotate']
-        # reactor.stop()
-        # reactor.__init__() # 重置reactor
-        # self.udp_client = game_net.UDP_ctrl_client(self.ctrl_handler)
-        # reactor.listenUDP(net_config.ctrl_port, self.udp_client) # 重新添加UDP任务 BUG 端口似乎还没有释放
         reactor.disconnectAll()
         reactor.__init__()
-        self.udp_key = game_net.UDP_key_protocol(self.key_handler)
+        self.udp_key = game_net.UDP_key_protocol(self.key_handler,host_ip)
         reactor.listenUDP(net_config.ctrl_port, self.udp_ctrl)
         reactor.listenUDP(net_config.p2p_port, self.udp_key)
         reactor_thread = threading.Thread(target=reactor.run)
