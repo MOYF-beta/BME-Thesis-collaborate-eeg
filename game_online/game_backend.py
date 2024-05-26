@@ -43,9 +43,7 @@ class game_backend:
             time.sleep(1)
 
     def get_key_status(self):
-        game_backend.slide_direction = 0
-        game_backend.rotate_direction = 0
-        game_backend.space_pressed = False
+
         keys_pressed = event.getKeys()
         if self.game_mode == 'single' or self.task == 'slide':
             if 'z' in keys_pressed:
@@ -69,6 +67,10 @@ class game_backend:
         self.callbacks['block_rotate'](game_backend.rotate_direction)
         if game_backend.space_pressed:
             self.callbacks['space_pressed']()
+        
+        game_backend.slide_direction = 0
+        game_backend.rotate_direction = 0
+        game_backend.space_pressed = False
             
     def send_remote_key(self):
         data = {}
