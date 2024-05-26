@@ -125,7 +125,7 @@ class game_backend:
             self.other_player_ip = (set(msg['ip']) - set(self.ip_list)).pop()
 
             if self.net_transport.key_service is None:
-                self.net_transport.run_key_event_transport()
+                self.net_transport.run_key_event_transport(self.task,self.other_player_ip)
 
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
