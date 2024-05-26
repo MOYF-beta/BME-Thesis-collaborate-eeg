@@ -122,7 +122,7 @@ class game_backend:
             # 提取信息
             assert 'ip' in msg
             self.game_mode = 'multi'
-            self.other_player_ip = (msg['ip'] - self.ip_list).pop()
+            self.other_player_ip = (set(msg['ip']) - set(self.ip_list)).pop()
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
             self.game_running = True

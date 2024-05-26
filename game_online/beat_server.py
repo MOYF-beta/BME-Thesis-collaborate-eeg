@@ -82,12 +82,12 @@ class beat_server(cmd.Cmd):
             warning_text = Text("没有这个玩家", style="bold red")
             self.console.print(warning_text)
             return
-        if task != 'rotate' and task.upper() != 'slide':
+        if task.lower() != 'rotate' and task.lower() != 'slide':
             warning_text = Text("分组只能指派 slide、rotate", style="bold red")
             self.console.print(warning_text)
             return
-        
-        self.twisted_server.arrange_task(p,task)
+        p.task = task.lower()
+        self.twisted_server.arrange_task(self.players)
         self.console.print(f'已为{player_ip}分配合作任务为{task}')
 
     def do_ss(self, line):
@@ -159,7 +159,7 @@ class beat_server(cmd.Cmd):
             self.transport.write(data.encode('utf-8'),(ip,self.ctrl_port))
 
         def send_data_to_player_s(self,player_s,data):
-            if player_s is not list:
+            if not isinstance(player_s, list):
                 player_s = [player_s]
             for player in player_s:
                 self._send_data(player.ip,data)
@@ -181,13 +181,11 @@ class beat_server(cmd.Cmd):
                         'group':player.group}))
         
         def arrange_task(self,players):
-            if players is not list:
-                players = [players]
             for player in players:
                 if player.task is not None:
                     self.send_data_to_player_s(player,json.dumps({
                         'op':'at',
-                        'group':player.task}))
+                        'task':player.task}))
 
         '''单人游戏控制'''
         def start_single(self):
