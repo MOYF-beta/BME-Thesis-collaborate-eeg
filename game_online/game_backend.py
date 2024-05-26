@@ -78,7 +78,8 @@ class game_backend:
             data['r'] = game_backend.rotate_direction
         if game_backend.space_pressed:
             data['!'] = 1
-        self.net_transport.send_key(data)
+        if data != {}:
+            self.net_transport.send_key(data)
 
     def handle_remote_key(data:dict):
         if 's' in data.keys:
