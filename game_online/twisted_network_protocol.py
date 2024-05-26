@@ -100,7 +100,7 @@ class game_net:
             self.callback(data_dict)
 
         def send_data(self,data):
-            self.transport.write(str(data))
+            self.transport.write(str(data).encode('utf-8'))
 
     
     class TCP_key_protocol_Factory(protocol.ClientFactory):
