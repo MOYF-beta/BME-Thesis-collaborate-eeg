@@ -110,15 +110,13 @@ class game_backend:
             self.callbacks['start_game'](False)
             
         elif op == 'sm': # start_multi
-            assert not self.game_running
             assert self.group is not None 
             # 提取信息
             assert 'ip' in msg
             self.game_mode = 'multi'
             self.other_player_ip = (set(msg['ip']) - set(self.ip_list)).pop()
 
-            if self.net_transport.key_service is None:
-                self.net_transport.run_key_event_transport(self.task,self.other_player_ip)
+            self.net_transport.run_key_event_transport(self.task,self.other_player_ip)
 
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
