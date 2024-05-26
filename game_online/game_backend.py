@@ -42,41 +42,41 @@ class game_backend:
         while True:
             time.sleep(1)
 
-    def key_listen_thread(self):
-        while self.game_running:
-            game_backend.slide_direction = 0
-            game_backend.rotate_direction = 0
-            game_backend.space_pressed = False
-            keys_pressed = event.getKeys()
-            if 'z' in keys_pressed:
-                game_backend.slide_direction -= 1
-            if 'x' in keys_pressed:
-                game_backend.slide_direction += 1
-            if 'comma' in keys_pressed: # <
-                game_backend.rotate_direction += 1
-            if 'period' in keys_pressed: # >
-                game_backend.rotate_direction -= 1
-            if 'space' in keys_pressed: 
-                game_backend.space_pressed = True
+    def get_key_status(self):
+        game_backend.slide_direction = 0
+        game_backend.rotate_direction = 0
+        game_backend.space_pressed = False
+        keys_pressed = event.getKeys()
+        if 'z' in keys_pressed:
+            game_backend.slide_direction -= 1
+        if 'x' in keys_pressed:
+            game_backend.slide_direction += 1
+        if 'comma' in keys_pressed: # <
+            game_backend.rotate_direction += 1
+        if 'period' in keys_pressed: # >
+            game_backend.rotate_direction -= 1
+        if 'space' in keys_pressed: 
+            game_backend.space_pressed = True
+        if(len(keys_pressed)>0):
+            print(keys_pressed)
+        if self.game_mode == 'single':
+            # 单人模式下按键时间直接驱动游戏
+            self.callbacks['block_slide'](game_backend.slide_direction)
+            self.callbacks['block_rotate'](game_backend.rotate_direction)
+            self.callbacks['space_pressed'](game_backend.space_pressed)
 
-            if self.game_mode == 'single':
-                # 单人模式下按键时间直接驱动游戏
+        elif self.game_mode == 'multi':
+            # 多人模式，属于自己job的按键事件驱动游戏并发送给同伙
+            if self.task == 'slide' and game_backend.slide_direction != 0:
+                self.send_remote_key(game_backend.slide_direction)
                 self.callbacks['block_slide'](game_backend.slide_direction)
+            elif self.task == 'rotate' and game_backend.rotate_direction != 0:
+                self.send_remote_key(game_backend.rotate_direction)
                 self.callbacks['block_rotate'](game_backend.rotate_direction)
-                self.callbacks['space_pressed'](game_backend.space_pressed)
-
-            elif self.game_mode == 'multi':
-                # 多人模式，属于自己job的按键事件驱动游戏并发送给同伙
-                if self.task == 'slide' and game_backend.slide_direction != 0:
-                    self.send_remote_key(game_backend.slide_direction)
-                    self.callbacks['block_slide'](game_backend.slide_direction)
-                elif self.task == 'rotate' and game_backend.rotate_direction != 0:
-                    self.send_remote_key(game_backend.rotate_direction)
-                    self.callbacks['block_rotate'](game_backend.rotate_direction)
-                if game_backend.space_pressed:
-                    # 两人都有权使用空格
-                    self.send_remote_key(game_backend.space_pressed)
-                self.callbacks['space_pressed'] = game_backend.space_pressed
+            if game_backend.space_pressed:
+                # 两人都有权使用空格
+                self.send_remote_key(game_backend.space_pressed)
+            self.callbacks['space_pressed'] = game_backend.space_pressed
             
     def send_remote_key(self):
         data = {}
@@ -113,6 +113,7 @@ class game_backend:
             assert not self.game_running
             assert self.group is not None
             self.game_running = True
+            self.game_mode = 'single'
             self.callbacks['start_game'](False)
             
         elif op == 'sm': # start_multi
@@ -120,6 +121,7 @@ class game_backend:
             assert self.group is not None 
             # 提取信息
             assert 'ip' in msg
+            self.game_mode = 'multi'
             self.other_player_ip = (msg['ip'] - self.ip_list).pop()
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
@@ -134,3 +136,5 @@ class game_backend:
 
         elif op == 'es' or op == 'em': # end_single,end_multi
             self.game_running = False
+            self.game_mode = None
+            self.callbacks['end_game']()
