@@ -162,9 +162,10 @@ class beat_server(cmd.Cmd):
                 try:
                     data_dict = json.loads(data.decode('utf-8'))
                     if client_ip not in clients_addr and 'find' in data_dict and data_dict['find'] == net_config.discover_keyword:
-                        self.players.append(beat_server.player(client_ip))
+                        player = beat_server.player(client_ip)
+                        self.players.append()
                         self._send_data(client_ip, '{"ack":1}')
-                        self.console.log(f'发现{addr}')
+                        self.console.log(f'发现玩家 {player.id} @ {addr}')
                 except:
                     self.console.print(Text(f"{addr}:{data.decode('utf-8')}", style="bold red"))
             
