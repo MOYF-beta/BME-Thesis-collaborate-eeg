@@ -2,25 +2,13 @@ import time
 import socket
 from typing import Callable
 from psychopy import core,event
-from twisted_network_protocol import game_net
+from twisted_network_protocol import twisted_game_networking
 
 class game_backend:
 
     slide_direction = 0
     rotate_direction = 0
     space_pressed = False
-
-    def get_all_ip_addresses():
-        ip_list = []
-        hostname = socket.gethostname()
-        ip_addresses = socket.getaddrinfo(hostname, None)
-        
-        for addr in ip_addresses:
-            ip = addr[4][0]
-            if ip not in ip_list:
-                ip_list.append(ip)
-        
-        return ip_list
 
     def __init__(self,callbacks:dict[str,Callable]) -> None:
 
@@ -32,13 +20,10 @@ class game_backend:
         self.task = None # slide/rotate
 
         self.game_running = False
-        self.ip_list = game_backend.get_all_ip_addresses() #获得本机的所有ip地址
-        self.other_player_ip = None
-
-        self.net_transport = game_net(self.handle_server_msg,self.handle_remote_key)
+        self.net_layer = twisted_game_networking(self.handle_data)
     
     def run(self):
-        self.net_transport.run_ctrl_transport()
+        self.net_layer.run_ctrl_transport()
         while True:
             time.sleep(1)
 
@@ -73,32 +58,49 @@ class game_backend:
         game_backend.space_pressed = False
             
     def send_remote_key(self):
-        data = {}
+        data = {'k':[]}
         need_send = False
         if self.task == 'slide' and game_backend.slide_direction != 0:
-            data['s'] = game_backend.slide_direction
+            data['k'].append(1 if game_backend.slide_direction >0 else 2) 
             need_send = True
         elif self.task == 'rotate' and game_backend.rotate_direction != 0:
-            data['r'] = game_backend.rotate_direction
+            data['k'].append(3 if game_backend.slide_direction >0 else 4) 
             need_send = True
         if game_backend.space_pressed:
-            data['!'] = 1
+            data['k'].append(5)
             need_send = True
         if need_send:
-            self.net_transport.send_key(data)
+            self.net_layer.send_key(data)
 
-    def handle_remote_key(self,data:dict):
-        if 's' in data.keys():
-            game_backend.slide_direction = data['s']
-        if 'r' in data.keys():
-            game_backend.rotate_direction = data['r']
-        if '!' in data.keys() and data['!'] == 1:
+    def handle_game_data(self,data:dict):
+        keys = data.keys()
+        if 's' in keys:
+            # 收到来自服务器的更新节拍，给游戏更新flag打true
+            if self.game_running and self.game_mode == 'multi':
+                self.callbacks['update_multiplayer_flag']()
+            return
+        if 'k' not in keys:
+            print(f"warning:unknow pack recived{data}")
+            return
+        key_event = data['k']
+        if 1 in key_event:
+            game_backend.slide_direction = 1
+        if 2 in key_event:
+            game_backend.slide_direction = -1
+        if 3 in key_event:
+            game_backend.rotate_direction = 1
+        if 4 in key_event:
+            game_backend.rotate_direction = -1
+        if 5 in key_event:
             game_backend.space_pressed = True
         
 
-    def handle_server_msg(self,msg:dict):
+    def handle_data(self,msg:dict):
         if 'op' not in msg:
+            # 没有op字段的视作游戏数据
+            self.handle_game_data(msg)
             return
+        # 处理控制信息
         op = msg['op']
         
         if op == 'ag': # arrange_group
@@ -121,19 +123,11 @@ class game_backend:
             # 提取信息
             assert 'ip' in msg
             self.game_mode = 'multi'
-            self.other_player_ip = (set(msg['ip']) - set(self.ip_list)).pop()
-
-            self.net_transport.run_key_event_transport(self.task,self.other_player_ip)
 
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
             self.game_running = True
             self.callbacks['start_game'](True)
-
-        elif op == 'sb': # sync_beat
-            # 收到来自服务器的更新节拍，给游戏更新flag打true
-            if self.game_running and self.game_mode == 'multi':
-                self.callbacks['update_multiplayer_flag']()
 
         elif op == 'es' or op == 'em': # end_single,end_multi
             self.game_running = False
