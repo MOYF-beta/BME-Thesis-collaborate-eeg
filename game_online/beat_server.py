@@ -52,7 +52,10 @@ class beat_server(cmd.Cmd):
         reactor_thread.start()
     def do_ag(self, line):
         tokens = line.split()
-        player_id = tokens[0]
+        try:
+            player_id = int(tokens[0])
+        except:
+            self.console.print(Text("玩家id应该是个数字", style="bold red"))
         group = tokens[1].upper()
         have_player_flag = False
         if group != 'A' and group.upper() != 'B':
@@ -77,7 +80,10 @@ class beat_server(cmd.Cmd):
 
     def do_at(self, line):
         tokens = line.split()
-        player_id = tokens[0]
+        try:
+            player_id = int(tokens[0])
+        except:
+            self.console.print(Text("玩家id应该是个数字", style="bold red"))
         task = tokens[1].lower()
         have_player_flag = False
         p = None
@@ -121,12 +127,12 @@ class beat_server(cmd.Cmd):
     def do_lp(self, line):
         # list players
         table = Table(title="玩家")
-        table.add_column("IP", justify="center", style="cyan")
+        table.add_column("ID", justify="center", style="cyan")
         table.add_column("IP", justify="center", style="white")
         table.add_column("Group", justify="center", style="magenta")
         table.add_column("Task", justify="center", style="green")
         for p in self.players:
-            table.add_row(p.id, p.ip, p.group or "未指定", p.task or "未指定")
+            table.add_row(str(p.id), p.ip, p.group or "未指定", p.task or "未指定")
         self.console.print(table)
         
 

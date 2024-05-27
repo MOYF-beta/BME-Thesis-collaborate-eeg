@@ -53,7 +53,7 @@ class Trtris_map:
         self.game_over = True
     
     def callback_update_multiplayer_flag(self):
-        self.multiplayer_update_flag = True
+        self.game_update_flag = True
     
     def callback_multiplayer_standby(self,p1:bool,p2:bool):
         pass # TODO 根据需求2呈现玩家准备的状态
@@ -104,7 +104,7 @@ class Trtris_map:
         self.seed = None
         self.group = None # A/B
         self.is_multiplayer = None
-        self.multiplayer_update_flag = False # 在多人模式，服务器发送beat信号设置此flag，让游戏进行一次更新
+        self.game_update_flag = False # 在多人模式，服务器发送beat信号设置此flag，让游戏进行一次更新
         self.game_running = False
         self.callbacks = {
             'set_gamemode':self.callback_set_gamemode,
@@ -259,20 +259,20 @@ class Trtris_map:
             iter_time = 1/(np.sqrt(self.gamespeed)+1)
             if not self.is_multiplayer:
                 # 单人模式，自行计时
-                self.multiplayer_update_flag = core.getTime() - t_begin >= iter_time
-            while not self.multiplayer_update_flag:
+                self.game_update_flag = core.getTime() - t_begin >= iter_time
+            while not self.game_update_flag:
                 self.backend.get_key_status()
                 # 等待到达更新时间
                 if self.space_pressed:
+                    self.game_update_flag = True
                     self.space_pressed = False
                     break 
-            if self.multiplayer_update_flag:
                 if not self.is_multiplayer:
-                    # 单人模式，自行计时
-                    self.multiplayer_update_flag = core.getTime() - t_begin >= iter_time
-                else:
-                    self.multiplayer_update_flag = False
+                    # 单人模式，自行更新计时
+                    self.game_update_flag = core.getTime() - t_begin >= iter_time
+            if self.game_update_flag:
                 self.game_step()
+                self.game_update_flag = False
             
             
     def mat_iter(self):

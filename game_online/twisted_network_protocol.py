@@ -46,10 +46,9 @@ class twisted_game_networking:
             # 处理服务器发来的ack，确定已被服务器发现
             self.server_ip,_ = addr
             try:
-                data_dict = json.loads(data.decode('utf-8'))
-                if self.reported_ip:
-                    self.callback(data_dict)
-                elif 'ack' in data_dict.keys(): # 服务器单播确认已经找到ip
+                data_dict = json.loads(data.decode('utf-8'))    
+                if 'ack' in data_dict.keys(): # 服务器单播确认已经找到ip
+                    print(f'server @ {addr} found')
                     self.reported_ip = True
             except Exception as e:
                 print(e)
@@ -64,32 +63,11 @@ class twisted_game_networking:
             pass
 
         def datagramReceived(self, data, addr):
-            if self.server_ip is None:
+            if not self.reported_ip:
                 self.handle_server_ack_msg(data, addr)
             else:
                 self.handle_server_game_msg(data)
-            
-    
+                
         def send_data(self,data):
             assert self.server_ip is not None
             self.transport.write(str(data).encode('utf-8'),(self.server_ip,self.server_port))
-
-    # 按键事件交换协议
-    class UDP_key_protocol(protocol.Protocol):
-        def __init__(self, callback:Callable[[dict],None], other_player_ip):
-            self.callback = callback
-            self.other_player_ip = other_player_ip
-        def startProtocol(self):
-            pass
-        def datagramReceived(self, data, addr):
-            try:
-                data_dict = json.loads(data.decode('utf-8'))
-                self.callback(data_dict)
-            except:
-                print(f'err while decode key event{data}')
-
-        def send_data(self,data):
-            assert self.other_player_ip is not None
-            self.transport.write(str(data).encode('utf-8'),(self.other_player_ip,net_config.p2p_port))
-
-    

@@ -96,13 +96,13 @@ class game_backend:
         
 
     def handle_data(self,msg:dict):
-        if 'op' not in msg:
+        if 'op' not in msg.keys():
             # 没有op字段的视作游戏数据
             self.handle_game_data(msg)
             return
         # 处理控制信息
         op = msg['op']
-        
+        print(f"{msg}")
         if op == 'ag': # arrange_group
             assert 'group' in msg
             self.group = msg['group']
