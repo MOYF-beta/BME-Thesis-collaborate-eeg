@@ -163,7 +163,12 @@ class beat_server(cmd.Cmd):
                 if self.about_to_sync:
                     return # 在即将同步下落时不发送按键事件
                 for player in self.players:
-                    self._send_data(player.ip, data)
+                    try:
+                        # 先进行一下json格式校验在转发
+                        json.loads(data.decode('utf-8'))
+                        self._send_data(player.ip, data)
+                    except:
+                        self.console.log(f"unknow msg : {data}")
             else:
                 try:
                     data_dict = json.loads(data.decode('utf-8'))
@@ -265,7 +270,7 @@ class beat_server(cmd.Cmd):
                 # 即将同步，禁止发送按键（直接丢弃客户端收到的包）
                 self.about_to_sync = True
                 self.send_data_to_player_s(self.players,json.dumps({
-                    'op':'sb'
+                    's':1
                 }))
                 core.wait(self.sync_time) # 确保客户端已经执行了下落操作。
                 self.about_to_sync = False

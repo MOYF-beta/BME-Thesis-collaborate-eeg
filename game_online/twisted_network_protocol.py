@@ -56,8 +56,11 @@ class twisted_game_networking:
         
         def handle_server_game_msg(self,data):
             # 处理游戏中的信号，包含beat与按键信号
-            data_dict = json.loads(data.decode('utf-8'))
-            self.callback(data_dict)
+            try:
+                data_dict = json.loads(data.decode('utf-8'))
+                self.callback(data_dict)
+            except:
+                print(f"unknow msg:{data}")
 
         def startProtocol(self):
             pass
@@ -67,7 +70,7 @@ class twisted_game_networking:
                 self.handle_server_ack_msg(data, addr)
             else:
                 self.handle_server_game_msg(data)
-                
+
         def send_data(self,data):
             assert self.server_ip is not None
             self.transport.write(str(data).encode('utf-8'),(self.server_ip,self.server_port))
