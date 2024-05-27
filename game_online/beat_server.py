@@ -256,7 +256,7 @@ class beat_server(cmd.Cmd):
             self.multiplayer_running = True
             self.beat_thread.start()
 
-        def sync_beat(self,step_time):
+        def sync_beat(self,step_time = net_config.step_time):
             '''
             {"k":[...]}
             k是按键事件，z=1,x=2,<=3,>=4,space=5

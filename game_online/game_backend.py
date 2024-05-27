@@ -29,6 +29,9 @@ class game_backend:
 
     def get_key_status(self):
 
+        game_backend.slide_direction = 0
+        game_backend.rotate_direction = 0
+        game_backend.space_pressed = False
         keys_pressed = event.getKeys()
         if self.game_mode == 'single' or self.task == 'slide':
             if 'z' in keys_pressed:
@@ -48,14 +51,12 @@ class game_backend:
         if self.game_mode == 'multi':
             # 多人模式，属于自己job的按键事件驱动游戏并发送给同伙
             self.send_remote_key()
-        self.callbacks['block_slide'](game_backend.slide_direction)
-        self.callbacks['block_rotate'](game_backend.rotate_direction)
-        if game_backend.space_pressed:
-            self.callbacks['space_pressed']()
+        else:
+            self.callbacks['block_slide'](game_backend.slide_direction)
+            self.callbacks['block_rotate'](game_backend.rotate_direction)
+            if game_backend.space_pressed:
+                self.callbacks['space_pressed']()
         
-        game_backend.slide_direction = 0
-        game_backend.rotate_direction = 0
-        game_backend.space_pressed = False
             
     def send_remote_key(self):
         data = {'k':[]}
@@ -93,6 +94,11 @@ class game_backend:
             game_backend.rotate_direction = -1
         if 5 in key_event:
             game_backend.space_pressed = True
+        
+        self.callbacks['block_slide'](game_backend.slide_direction)
+        self.callbacks['block_rotate'](game_backend.rotate_direction)
+        if game_backend.space_pressed:
+            self.callbacks['space_pressed']()
         
 
     def handle_data(self,msg:dict):
