@@ -11,7 +11,7 @@ import net_config
 class twisted_game_networking:
     
     def __init__(self,data_handler:Callable[[dict],None]) -> None:
-        self.ctrl_handler = data_handler
+        self.data_handler = data_handler
         self.server_port = net_config.server_port
         self.key_event_port = net_config.p2p_port
         self.udp_ctrl = None
@@ -20,7 +20,7 @@ class twisted_game_networking:
     def run_ctrl_transport(self):
         if self.init_stage > 0:
             return
-        self.udp_ctrl = twisted_game_networking.UDP_ctrl_protocol(self.ctrl_handler)
+        self.udp_ctrl = twisted_game_networking.UDP_ctrl_protocol(self.data_handler)
         reactor.listenUDP(net_config.ctrl_port, self.udp_ctrl)
         reactor_thread = threading.Thread(target=reactor.run)
         reactor_thread.start()
@@ -58,7 +58,7 @@ class twisted_game_networking:
         def handle_server_game_msg(self,data):
             # 处理游戏中的信号，包含beat与按键信号
             data_dict = json.loads(data.decode('utf-8'))
-            if 's' in data_dict:
+            self.callback(data_dict)
 
         def startProtocol(self):
             pass
