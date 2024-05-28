@@ -182,9 +182,9 @@ class beat_server(cmd.Cmd):
             
             
         def _send_data(self,ip,data):
-            if data is not str:
-                data = str(data)
-            self.transport.write(data.encode('utf-8'),(ip,self.ctrl_port))
+            if not isinstance(data,bytes):
+                data = data.encode('utf-8')
+            self.transport.write(data,(ip,self.ctrl_port))
 
         def send_data_to_player_s(self,player_s,data):
             if not isinstance(player_s, list):

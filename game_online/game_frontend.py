@@ -55,6 +55,12 @@ class Trtris_map:
     def callback_update_multiplayer_flag(self):
         self.game_update_flag = True
     
+    def callback_block_slide(self,slide_direction):
+        self.slide_direction = slide_direction
+    
+    def callback_block_rotate(self,rotate_direction):
+        self.rotate_direction = rotate_direction
+    
     def callback_multiplayer_standby(self,p1:bool,p2:bool):
         pass # TODO 根据需求2呈现玩家准备的状态
 
@@ -111,8 +117,8 @@ class Trtris_map:
             'set_group':self.callback_set_group,
             'set_seed':self.callback_set_seed,
             'space_pressed':self.callback_space_pressed,
-            'block_slide':self.block_slide,
-            'block_rotate':self.block_rotate,
+            'block_slide':self.callback_block_slide,
+            'block_rotate':self.callback_block_rotate,
             'start_game':self.start_game,
             'end_game':self.end_game,
             'update_multiplayer_flag':self.callback_update_multiplayer_flag,
@@ -260,6 +266,14 @@ class Trtris_map:
             if not self.is_multiplayer:
                 # 单人模式，自行计时
                 self.game_update_flag = core.getTime() - t_begin >= iter_time
+            else:
+                # 多人模式，响应按键事件回调设定的flag
+                if self.slide_direction != 0:
+                    self.block_slide(self.slide_direction)
+                    self.slide_direction = 0
+                if self.rotate_direction != 0:
+                    self.block_rotate(self.rotate_direction)
+                    self.rotate_direction = 0
             while not self.game_update_flag:
                 self.backend.get_key_status()
                 # 等待到达更新时间
