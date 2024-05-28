@@ -56,6 +56,7 @@ class beat_server(cmd.Cmd):
             player_id = int(tokens[0])
         except:
             self.console.print(Text("玩家id应该是个数字", style="bold red"))
+            return
         group = tokens[1].upper()
         have_player_flag = False
         if group != 'A' and group.upper() != 'B':
@@ -221,12 +222,15 @@ class beat_server(cmd.Cmd):
                 if player.group is None:
                     self.rich_warning("警告：有玩家未分组")
                     return
-                    
+            self.console.print(f'{[player.ip for player in self.players]}单人模式')
+            
             for player in self.players:
                 self.send_data_to_player_s(player,json.dumps({
                         'op':'ss'}))
+            time.sleep(net_config.read_tip_time)
+            self.console.print(f'{[player.ip for player in self.players]}开始运行')
                         
-            self.console.print(f'{[player.ip for player in self.players]}启动单人模式')
+            
             
 
         def end_single(self):
@@ -251,10 +255,12 @@ class beat_server(cmd.Cmd):
                 'ip':[player.ip for player in self.players],
                 'seed':np.random.randint(0,23333)
             }))
-            self.console.print(f'{[player.ip for player in self.players]}启动多人模式')
+            self.console.print(f'{[player.ip for player in self.players]}多人模式')
+            time.sleep(net_config.read_tip_time)
             self.beat_thread = threading.Thread(target=self.sync_beat)
             self.multiplayer_running = True
             self.beat_thread.start()
+            self.console.print(f'{[player.ip for player in self.players]}开始运行')
 
         def sync_beat(self,step_time = net_config.step_time):
             '''

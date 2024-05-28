@@ -112,6 +112,7 @@ class game_backend:
         if op == 'ag': # arrange_group
             assert 'group' in msg
             self.group = msg['group']
+            self.callbacks['set_group'](msg['group'])
             # self.net_transport.resopnd_beat_server(msg['group'])
         elif op == 'at': # arrange_group
             assert 'task' in msg

@@ -3,7 +3,8 @@ from game_backend import game_backend
 from tetris_shape import tetris_shapes,tetris_color
 import numpy as np
 import threading
-from net_config import step_time
+from net_config import step_time,read_tip_time
+from game_strategy import group_A,group_B
 
 # TODO 1、改变UI，显示按键状态
 # TODO 2、添加全屏提示
@@ -20,9 +21,14 @@ class Trtris_map:
     def callback_set_group(self,group:str):
         assert group == 'A' or group == 'B'
         self.group = group
+        if group == 'A':
+            self.game_strategy = group_A()
+        else:
+            self.game_strategy = group_B()
     
     def callback_space_pressed(self):
         self.space_pressed = True
+        self.key_space.draw()
     
     def game_grapic_init(self):
         # convoluted shit
@@ -38,7 +44,7 @@ class Trtris_map:
         self.space_pressed = False
         self.game_score_text.text = f'Score: {self.game_score}'
     
-    def backend_ctrl_param_init(self):
+    def backend_ctrl_param_init(self): 
         self.slide_direction = 0
         self.rotate_direction = 0
         self.space_pressed = False
@@ -56,9 +62,17 @@ class Trtris_map:
     
     def callback_block_slide(self,slide_direction):
         self.slide_direction = slide_direction
+        if self.slide_direction == 1:
+            self.key_x.draw()
+        elif self.slide_direction == -1:
+            self.key_z.draw()
     
     def callback_block_rotate(self,rotate_direction):
         self.rotate_direction = rotate_direction
+        if self.rotate_direction == -1:
+            self.key_rr.draw()
+        elif self.rotate_direction == 1:
+            self.key_rl.draw()
     
     def callback_multiplayer_standby(self,p1:bool,p2:bool):
         pass # TODO 根据需求2呈现玩家准备的状态
@@ -105,6 +119,12 @@ class Trtris_map:
         self.next_block_text = visual.TextStim(win=self.win, text='Next:', pos=(0.6, 0.6 + rect_size), color=(1, 1, 1))
         self.game_score_text = visual.TextStim(win=self.win, text='Score: 0', pos=(0.6, 0.2-rect_size), color=(1, 1, 1))
 
+        self.key_z = visual.TextStim(win=self.win, text='Z', pos=(0.4, 0.1-rect_size), color=(1, 0, 0),bold=True)
+        self.key_x = visual.TextStim(win=self.win, text='X', pos=(0.5, 0.1-rect_size), color=(1, 0, 0),bold=True)
+        self.key_rl = visual.TextStim(win=self.win, text='<', pos=(0.6, 0.1-rect_size), color=(1, 0, 0),bold=True)
+        self.key_rr = visual.TextStim(win=self.win, text='>', pos=(0.7, 0.1-rect_size), color=(1, 0, 0),bold=True)
+        self.key_space = visual.TextStim(win=self.win, text='Space', pos=(0.7, 0.1-rect_size*2), color=(1, 0, 0),bold=True)
+
         self.seed = None
         self.group = None # A/B
         self.is_multiplayer = None
@@ -125,6 +145,7 @@ class Trtris_map:
         self.game_grapic_init()
         self.backend_ctrl_param_init()
         self.backend = game_backend(self.callbacks)
+        self.game_strategy = None
 
     def graphic_step(self): 
         map_colors = [tetris_color[self.mat_color[i, j]] 
@@ -137,7 +158,7 @@ class Trtris_map:
                   for j in range(4)]
         self.preview_area.colors = preview_colors
 
-        self.game_score_text.text = f'得分: {self.game_score}' # TODO 为不同组配置策略
+        self.game_score_text.text = f'得分: {self.game_strategy.score}'
 
         self.gameplay_area.draw()
         self.preview_area.draw()
@@ -172,8 +193,8 @@ class Trtris_map:
             self.graphic_step()
             
             
-        [new_score,block_falled] = self.mat_iter()
-        self.game_score += new_score
+        [n_eliminated,block_falled] = self.mat_iter()
+        self.game_strategy.get_score(n_eliminated)
         if block_falled or self.game_step_count == 0:
             pack_spawn()
         self.graphic_step()
@@ -252,17 +273,31 @@ class Trtris_map:
                     self.game_round() # 单人模式在收到停止信号之前一直进行
 
     def game_round(self):
+        self.game_strategy.reset()
+        def show_tip():
+            self.win.flip()
+            operation_tip_text = self.game_strategy.multi_operation_tip if self.is_multiplayer else self.game_strategy.single_operation_tip
+            score_tip_text = self.game_strategy.multi_score_tip if self.is_multiplayer else self.game_strategy.single_score_tip
+            visual.TextStim(height = 0.04,win=self.win, text=operation_tip_text, pos=(-0.5,0.2), color=(1, 1, 1)).draw()
+            if self.is_multiplayer:
+                visual.TextStim(height = 0.04,win=self.win, text=self.game_strategy.get_multi_player_role_tip(self.backend.task), pos=(-0.5,0), color=(1, 1, 1)).draw()
+            visual.TextStim(height = 0.04,win=self.win, text=score_tip_text, pos=(-0.5,-0.2), color=(0.9, 0.9, 1)).draw()
+            self.win.flip()
+            core.wait(read_tip_time)
+            self.win.flip()
 
         def immed_graphic_update():
             if self.slide_direction != 0:
-                self.block_slide(self.slide_direction)
-                self.slide_direction = 0
+                self.block_slide(self.slide_direction)    
+                self.slide_direction = 0             
             if self.rotate_direction != 0:
                 self.block_rotate(self.rotate_direction)
-                self.rotate_direction = 0
+                self.rotate_direction = 0   
         # 设置种子，在多人模式下使得种子相同
         seed = self.seed if self.is_multiplayer else np.random.randint(0,233333) 
         np.random.seed(seed)
+
+        show_tip()
         while not self.game_over:
             t_begin = core.getTime()
             if not self.is_multiplayer:
@@ -317,9 +352,8 @@ class Trtris_map:
             for f_block in falling_blocks:
                 if f_block[1] == 0 or self.mat_logic[f_block[0],f_block[1] -1] == 1:
                     block_touchdown()
-                    score = block_eliminate()
-                    score = score ** 2 # TODO 根据组别实现不同积分策略
-                    return score,True
+                    n_eliminated = block_eliminate()
+                    return n_eliminated,True
             # 下落一格
             color = self.mat_color[f_block[0],f_block[1]]
             for f_block in falling_blocks:
