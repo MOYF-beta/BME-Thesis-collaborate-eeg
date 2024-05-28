@@ -39,7 +39,7 @@ class Trtris_map:
         self.game_score_text.text = f'Score: {self.game_score}'
         self.game_speed_text.text = f'Speed: {self.gamespeed}' 
     
-    def backend_ctrl_param_init(self):
+    def backend_ctrl_param_init(self): 
         self.slide_direction = 0
         self.rotate_direction = 0
         self.space_pressed = False
@@ -176,8 +176,8 @@ class Trtris_map:
             self.graphic_step()
             
             
-        [new_score,block_falled] = self.mat_iter()
-        self.game_score += new_score
+        [n_eliminated,block_falled] = self.mat_iter()
+        # TODO self.game_strategy. += n_eliminated
         self.gamespeed = self.game_score // 5 + 1 # TODO 根据模式实现不同的速度策略
         if block_falled or self.game_step_count == 0:
             pack_spawn()
@@ -258,6 +258,10 @@ class Trtris_map:
 
     def game_round(self):
 
+        def show_tip():
+            pass # TODO 渲染提示文本
+            core.wait(15) # 
+
         def immed_graphic_update():
             if self.slide_direction != 0:
                 self.block_slide(self.slide_direction)
@@ -268,6 +272,8 @@ class Trtris_map:
         # 设置种子，在多人模式下使得种子相同
         seed = self.seed if self.is_multiplayer else np.random.randint(0,233333) 
         np.random.seed(seed)
+
+        show_tip()
         while not self.game_over:
             t_begin = core.getTime()
             iter_time = 1/(np.sqrt(self.gamespeed)+1)
@@ -323,9 +329,8 @@ class Trtris_map:
             for f_block in falling_blocks:
                 if f_block[1] == 0 or self.mat_logic[f_block[0],f_block[1] -1] == 1:
                     block_touchdown()
-                    score = block_eliminate()
-                    score = score ** 2 # TODO 根据组别实现不同积分策略
-                    return score,True
+                    n_eliminated = block_eliminate()
+                    return n_eliminated,True
             # 下落一格
             color = self.mat_color[f_block[0],f_block[1]]
             for f_block in falling_blocks:
