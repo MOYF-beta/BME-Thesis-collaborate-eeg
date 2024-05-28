@@ -28,7 +28,7 @@ class twisted_game_networking:
         self.init_stage = 1
     
     def send_key(self,keys):
-        self.udp_ctrl.send_data(json.dumps(keys))
+        self.udp_ctrl.send_data(json.dumps(keys).encode('utf-8'))
     
     class UDP_ctrl_protocol(DatagramProtocol):
         def __init__(self, callback:Callable[[dict],None]):
@@ -39,7 +39,7 @@ class twisted_game_networking:
 
         def reported_ip_to_beat_server(self):
             while not self.reported_ip:
-                self.send_data(json.dumps({'find':net_config.discover_keyword}))
+                self.send_data(json.dumps({'find':net_config.discover_keyword}).encode('utf-8'))
                 time.sleep(0.5)
 
         def handle_server_ack_msg(self,data,addr):
@@ -71,12 +71,6 @@ class twisted_game_networking:
             else:
                 self.handle_server_game_msg(data)
 
-        def send_data(self,data):
+        def send_data(self,data:str):
             assert self.server_ip is not None
-            is_str = isinstance(data,str)
-            is_byte = isinstance(data,str)
-            if not is_str and not is_byte:
-                data = json.dumps(data).encode('utf-8')
-            elif is_str:
-                data = data.encode('utf-8')
             self.transport.write(data,(self.server_ip,self.server_port))
