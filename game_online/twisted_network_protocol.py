@@ -76,7 +76,7 @@ class twisted_game_networking:
             is_str = isinstance(data,str)
             is_byte = isinstance(data,str)
             if not is_str and not is_byte:
-                data = json.dumps(data)
+                data = json.dumps(data).encode('utf-8')
             elif is_str:
                 data = data.encode('utf-8')
-            self.transport.write(str(data).encode('utf-8'),(self.server_ip,self.server_port))
+            self.transport.write(data,(self.server_ip,self.server_port))
