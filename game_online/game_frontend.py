@@ -3,6 +3,7 @@ from game_backend import game_backend
 from tetris_shape import tetris_shapes,tetris_color
 import numpy as np
 import threading
+from net_config import step_time
 
 # TODO 1、改变UI，显示按键状态
 # TODO 2、添加全屏提示
@@ -29,7 +30,6 @@ class Trtris_map:
         self.mat_logic = np.zeros(self.map_size,dtype=np.int8)
         self.mat_color = np.zeros(self.map_size,dtype=np.int8)
         self.game_score = 0
-        self.gamespeed = 1
         self.game_over = False
         self.pack_no = 0
         self.pack = np.array(range(7),dtype=np.int8)
@@ -37,7 +37,6 @@ class Trtris_map:
         self.rotate_direction = 0
         self.space_pressed = False
         self.game_score_text.text = f'Score: {self.game_score}'
-        self.game_speed_text.text = f'Speed: {self.gamespeed}' 
     
     def backend_ctrl_param_init(self):
         self.slide_direction = 0
@@ -105,7 +104,6 @@ class Trtris_map:
         
         self.next_block_text = visual.TextStim(win=self.win, text='Next:', pos=(0.6, 0.6 + rect_size), color=(1, 1, 1))
         self.game_score_text = visual.TextStim(win=self.win, text='Score: 0', pos=(0.6, 0.2-rect_size), color=(1, 1, 1))
-        self.game_speed_text = visual.TextStim(win=self.win, text='Speed: 0.5', pos=(0.6, 0.2-rect_size*2), color=(1, 1, 1))
 
         self.seed = None
         self.group = None # A/B
@@ -139,14 +137,12 @@ class Trtris_map:
                   for j in range(4)]
         self.preview_area.colors = preview_colors
 
-        self.game_score_text.text = f'Score: {self.game_score}' # TODO 为不同组配置策略
-        self.game_speed_text.text = f'Speed: {self.gamespeed}'  # TODO 提示任务
+        self.game_score_text.text = f'得分: {self.game_score}' # TODO 为不同组配置策略
 
         self.gameplay_area.draw()
         self.preview_area.draw()
         self.next_block_text.draw()
         self.game_score_text.draw()
-        self.game_speed_text.draw()
         self.win.flip()
 
 
@@ -178,7 +174,6 @@ class Trtris_map:
             
         [new_score,block_falled] = self.mat_iter()
         self.game_score += new_score
-        self.gamespeed = self.game_score // 5 + 1 # TODO 根据模式实现不同的速度策略
         if block_falled or self.game_step_count == 0:
             pack_spawn()
         self.graphic_step()
@@ -270,10 +265,9 @@ class Trtris_map:
         np.random.seed(seed)
         while not self.game_over:
             t_begin = core.getTime()
-            iter_time = 1/(np.sqrt(self.gamespeed)+1)
             if not self.is_multiplayer:
                 # 单人模式，自行计时
-                self.game_update_flag = core.getTime() - t_begin >= iter_time
+                self.game_update_flag = core.getTime() - t_begin >= step_time
             else:
                 # 多人模式，响应按键事件回调设定的flag
                 immed_graphic_update()
@@ -286,9 +280,9 @@ class Trtris_map:
                     break 
                 if not self.is_multiplayer:
                     # 单人模式，自行更新计时
-                    self.game_update_flag = core.getTime() - t_begin >= iter_time
+                    self.game_update_flag = core.getTime() - t_begin >= step_time
                 immed_graphic_update()
-                
+
             if self.game_update_flag:
                 self.game_step()
                 self.game_update_flag = False
