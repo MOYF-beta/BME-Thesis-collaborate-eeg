@@ -73,4 +73,10 @@ class twisted_game_networking:
 
         def send_data(self,data):
             assert self.server_ip is not None
+            is_str = isinstance(data,str)
+            is_byte = isinstance(data,str)
+            if not is_str and not is_byte:
+                data = json.dumps(data)
+            elif is_str:
+                data = data.encode('utf-8')
             self.transport.write(str(data).encode('utf-8'),(self.server_ip,self.server_port))
