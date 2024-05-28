@@ -257,6 +257,14 @@ class Trtris_map:
                     self.game_round() # 单人模式在收到停止信号之前一直进行
 
     def game_round(self):
+
+        def immed_graphic_update():
+            if self.slide_direction != 0:
+                self.block_slide(self.slide_direction)
+                self.slide_direction = 0
+            if self.rotate_direction != 0:
+                self.block_rotate(self.rotate_direction)
+                self.rotate_direction = 0
         # 设置种子，在多人模式下使得种子相同
         seed = self.seed if self.is_multiplayer else np.random.randint(0,233333) 
         np.random.seed(seed)
@@ -268,12 +276,7 @@ class Trtris_map:
                 self.game_update_flag = core.getTime() - t_begin >= iter_time
             else:
                 # 多人模式，响应按键事件回调设定的flag
-                if self.slide_direction != 0:
-                    self.block_slide(self.slide_direction)
-                    self.slide_direction = 0
-                if self.rotate_direction != 0:
-                    self.block_rotate(self.rotate_direction)
-                    self.rotate_direction = 0
+                immed_graphic_update()
             while not self.game_update_flag:
                 self.backend.get_key_status()
                 # 等待到达更新时间
@@ -284,6 +287,8 @@ class Trtris_map:
                 if not self.is_multiplayer:
                     # 单人模式，自行更新计时
                     self.game_update_flag = core.getTime() - t_begin >= iter_time
+                immed_graphic_update()
+                
             if self.game_update_flag:
                 self.game_step()
                 self.game_update_flag = False
