@@ -29,6 +29,7 @@ class Trtris_map:
     def callback_space_pressed(self):
         self.space_pressed = True
         self.key_space.draw()
+        self.game_strategy.space_bouns()
     
     def game_grapic_init(self):
         # convoluted shit

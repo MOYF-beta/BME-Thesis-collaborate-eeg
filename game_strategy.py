@@ -1,5 +1,3 @@
-# TODO 4、添加游戏规则：A为fast_pace组，按空格+1，消1行+10，无倍率。B为low_pace组，消n行+n方10，按空格不加分
-
 class game_strategy:
     # 游戏计分类
     def __init__(self) -> None:

@@ -1,7 +1,6 @@
 import time
-import socket
 from typing import Callable
-from psychopy import core,event
+from psychopy import event
 from twisted_network_protocol import twisted_game_networking
 
 class game_backend:
