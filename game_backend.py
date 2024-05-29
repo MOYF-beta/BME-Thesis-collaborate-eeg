@@ -132,6 +132,7 @@ class game_backend:
 
             if 'seed' in msg:
                 self.multi_player_seed = msg['seed']
+                self.callbacks['set_seed'](self.multi_player_seed)
             self.game_running = True
             self.callbacks['start_game'](True)
 

@@ -200,6 +200,11 @@ class Trtris_map:
         self.game_strategy.get_score(n_eliminated)
         if block_falled or self.game_step_count == 0:
             pack_spawn()
+        
+        falling_blocks = self._get_falling_blocks()
+        if len(falling_blocks) > 0:
+            print("falling block missing, attmpt to spawn new")
+            pack_spawn()
         self.graphic_step()
         self.game_step_count += 1
 
@@ -229,7 +234,9 @@ class Trtris_map:
             return
         
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
-        
+        if len(falling_blocks) == 0:
+            print("falling block missing!")
+            return
         if x_max + direction < self.map_size[0] and x_min + direction >= 0:
             falling_mask_logic = self.mat_logic[x_min:x_max+1,y_min:y_max+1]
             [w,h] = falling_mask_logic.shape
@@ -248,6 +255,9 @@ class Trtris_map:
             return
         
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
+        if len(falling_blocks) == 0:
+            print("falling block missing!")
+            return
         falling_mask_logic = np.rot90(self.mat_logic[x_min:x_max+1,y_min:y_max+1],direction).copy()
         falling_mask_color = np.rot90(self.mat_color[x_min:x_max+1,y_min:y_max+1],direction).copy()
 
@@ -366,7 +376,7 @@ class Trtris_map:
             for f_block in falling_blocks:
                 self.mat_logic[f_block[0],f_block[1] -1] = 2
                 self.mat_color[f_block[0],f_block[1] -1] = color
-
+    
         return 0,False
 
 if __name__ == '__main__':
