@@ -6,11 +6,29 @@ import threading
 from net_config import step_time,read_tip_time
 from game_strategy import group_A,group_B
 
-# TODO 1、改变UI，显示按键状态
-# TODO 2、添加全屏提示
-
-
 class Trtris_map:
+
+    def ignore_error(func):
+        def wrapper(self, *args, **kwargs):
+            if self.update_lock:
+                return
+            self.update_lock = True
+            mat_logic_bak = self.mat_logic.copy()
+            mat_color_bak = self.mat_color.copy()
+            result = None
+            try:
+                result = func(self, *args, **kwargs)
+            except Exception as e:
+                self.mat_color = mat_color_bak
+                self.mat_logic = mat_logic_bak
+                self.graphic_step()
+                print(f"uncaught error:\n{e}")
+            finally:
+                self.update_lock = False
+                if result is not None:
+                    return result
+        return wrapper
+
 
     def callback_set_gamemode(self,is_multiplayer:bool):
         self.is_multiplayer = is_multiplayer
@@ -44,6 +62,8 @@ class Trtris_map:
         self.rotate_direction = 0
         self.space_pressed = False
         self.game_score_text.text = f'Score: {self.game_score}'
+        self.falling_missing = False
+        self.update_lock = False
     
     def backend_ctrl_param_init(self): 
         self.slide_direction = 0
@@ -171,7 +191,9 @@ class Trtris_map:
 
 
     def game_step(self):
-
+        while self.update_lock:
+            pass
+        self.update_lock = True
         def block_spawn(shape_no):
             new_blocks_mask = tetris_shapes[shape_no]
             new_blocks_color = shape_no + 1
@@ -198,15 +220,12 @@ class Trtris_map:
             
         [n_eliminated,block_falled] = self.mat_iter()
         self.game_strategy.get_score(n_eliminated)
-        if block_falled or self.game_step_count == 0:
+        if block_falled or self.game_step_count == 0 or self.falling_missing == True:
             pack_spawn()
-        
-        falling_blocks = self._get_falling_blocks()
-        if len(falling_blocks) > 0:
-            print("falling block missing, attmpt to spawn new")
-            pack_spawn()
+            self.falling_missing = False
         self.graphic_step()
         self.game_step_count += 1
+        self.update_lock = False
 
     def _get_falling_blocks(self, need_utils = False):
         falling_blocks_coord = np.where(self.mat_logic == 2)
@@ -229,19 +248,18 @@ class Trtris_map:
             color = self.mat_color[f_block[0],f_block[1]]
             return [falling_blocks,x_min,x_max,y_min,y_max,color]
 
+    @ignore_error
     def block_slide(self,direction):
-        if(direction == 0):
-            return
-        
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
         if len(falling_blocks) == 0:
+            self.falling_missing = True
             print("falling block missing!")
             return
         if x_max + direction < self.map_size[0] and x_min + direction >= 0:
             falling_mask_logic = self.mat_logic[x_min:x_max+1,y_min:y_max+1]
             [w,h] = falling_mask_logic.shape
             if not np.any(np.logical_and(falling_mask_logic == 2, 
-                                         self.mat_logic[x_min+direction:x_min+w+direction,y_max-h+1:y_max+1] == 1)):
+                                        self.mat_logic[x_min+direction:x_min+w+direction,y_max-h+1:y_max+1] == 1)):
                 for f_block in falling_blocks:
                     self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
                 for f_block in falling_blocks:
@@ -249,27 +267,24 @@ class Trtris_map:
                     self.mat_color[f_block[0] + direction,f_block[1]] = color
                 self.graphic_step()
     
-
+    @ignore_error
     def block_rotate(self,direction):
-        if(direction == 0):
-            return
-        
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
         if len(falling_blocks) == 0:
+            self.falling_missing = True
             print("falling block missing!")
             return
         falling_mask_logic = np.rot90(self.mat_logic[x_min:x_max+1,y_min:y_max+1],direction).copy()
         falling_mask_color = np.rot90(self.mat_color[x_min:x_max+1,y_min:y_max+1],direction).copy()
-
         [w,h] = falling_mask_logic.shape
         if x_min+w <= self.map_size[0] and y_max+1 < self.map_size[1]:
-            for f_block in falling_blocks:
-                self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
+            
             if not np.any(np.logical_and(falling_mask_logic == 2, self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] == 1)):
+                for f_block in falling_blocks:
+                    self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
                 self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_logic
                 self.mat_color[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_color
                 self.graphic_step()
-
     def main_thread(self):
         # 首先启动后端
         t_backend = threading.Thread(target=self.backend.run)
@@ -337,7 +352,6 @@ class Trtris_map:
                 self.game_step()
                 self.game_update_flag = False
             
-            
     def mat_iter(self):
 
         def block_touchdown():
@@ -362,6 +376,8 @@ class Trtris_map:
             return rows_eliminated
         
         falling_blocks = self._get_falling_blocks()
+        if not self.falling_missing and len(falling_blocks) == 0:
+            return 0,True
         if len(falling_blocks) > 0:
             # 检测碰撞
             for f_block in falling_blocks:
