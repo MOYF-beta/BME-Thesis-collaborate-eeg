@@ -1,10 +1,81 @@
-import argparse
-from psychopy import visual, core, event, monitors
-import yaml
+from psychopy import visual, core
+from game_backend import game_backend
 from tetris_shape import tetris_shapes,tetris_color
 import numpy as np
-from numba import jit
+import threading
+from net_config import step_time,read_tip_time
+from game_strategy import group_A,group_B
+
+# TODO 1、改变UI，显示按键状态
+# TODO 2、添加全屏提示
+
+
 class Trtris_map:
+
+    def callback_set_gamemode(self,is_multiplayer:bool):
+        self.is_multiplayer = is_multiplayer
+    
+    def callback_set_seed(self,seed:int):
+        self.seed = seed
+    
+    def callback_set_group(self,group:str):
+        assert group == 'A' or group == 'B'
+        self.group = group
+        if group == 'A':
+            self.game_strategy = group_A()
+        else:
+            self.game_strategy = group_B()
+    
+    def callback_space_pressed(self):
+        self.space_pressed = True
+        self.key_space.draw()
+    
+    def game_grapic_init(self):
+        # convoluted shit
+        self.game_step_count = 0
+        self.mat_logic = np.zeros(self.map_size,dtype=np.int8)
+        self.mat_color = np.zeros(self.map_size,dtype=np.int8)
+        self.game_score = 0
+        self.game_over = False
+        self.pack_no = 0
+        self.pack = np.array(range(7),dtype=np.int8)
+        self.slide_direction = 0
+        self.rotate_direction = 0
+        self.space_pressed = False
+        self.game_score_text.text = f'Score: {self.game_score}'
+    
+    def backend_ctrl_param_init(self): 
+        self.slide_direction = 0
+        self.rotate_direction = 0
+        self.space_pressed = False
+    
+    def start_game(self,is_multiplayer:bool):
+        self.is_multiplayer = is_multiplayer
+        self.game_running = True
+    
+    def end_game(self):
+        self.game_running = False
+        self.game_over = True
+    
+    def callback_update_multiplayer_flag(self):
+        self.game_update_flag = True
+    
+    def callback_block_slide(self,slide_direction):
+        self.slide_direction = slide_direction
+        if self.slide_direction == 1:
+            self.key_x.draw()
+        elif self.slide_direction == -1:
+            self.key_z.draw()
+    
+    def callback_block_rotate(self,rotate_direction):
+        self.rotate_direction = rotate_direction
+        if self.rotate_direction == -1:
+            self.key_rr.draw()
+        elif self.rotate_direction == 1:
+            self.key_rl.draw()
+    
+    def callback_multiplayer_standby(self,p1:bool,p2:bool):
+        pass # TODO 根据需求2呈现玩家准备的状态
 
     def _get_positions_gameplay(self, map_size, rect_size, margin):
         positions = []
@@ -24,14 +95,10 @@ class Trtris_map:
                 positions.append((x, y))
         return positions
 
-    def __init__(self,
-                 map_size = (10,20),win_shape = (800,800),
+    def __init__(self, map_size = (10,20),win_shape = (800,800),
                  game_zone_width = 0.7, margin = 0.1) -> None:
         self.win = visual.Window(size=win_shape, winType='pyglet')
         self.map_size = map_size
-        self.mat_render = []
-        self.mat_logic = np.zeros(map_size,dtype=np.int8)
-        self.mat_color = np.zeros(map_size,dtype=np.int8)
         rect_size = (game_zone_width - 2 * margin)/map_size[0] * 2 
         nElements = map_size[0] * map_size[1]
         self.gameplay_area = visual.ElementArrayStim(win=self.win, 
@@ -51,18 +118,34 @@ class Trtris_map:
         
         self.next_block_text = visual.TextStim(win=self.win, text='Next:', pos=(0.6, 0.6 + rect_size), color=(1, 1, 1))
         self.game_score_text = visual.TextStim(win=self.win, text='Score: 0', pos=(0.6, 0.2-rect_size), color=(1, 1, 1))
-        self.game_speed_text = visual.TextStim(win=self.win, text='Speed: 0.5', pos=(0.6, 0.2-rect_size*2), color=(1, 1, 1))
 
-        self.game_score = 0
-        self.gamespeed = 1
-        self.game_over = False
-        self.pack_no = 0
-        self.pack = np.array(range(7),dtype=np.int8)
-        self.game_step_count = 0
-        self.spawn_flag = False
-        self.next_block_no = int(self.pack[0])
+        self.key_z = visual.TextStim(win=self.win, text='Z', pos=(0.4, 0.1-rect_size), color=(1, 0, 0),bold=True)
+        self.key_x = visual.TextStim(win=self.win, text='X', pos=(0.5, 0.1-rect_size), color=(1, 0, 0),bold=True)
+        self.key_rl = visual.TextStim(win=self.win, text='<', pos=(0.6, 0.1-rect_size), color=(1, 0, 0),bold=True)
+        self.key_rr = visual.TextStim(win=self.win, text='>', pos=(0.7, 0.1-rect_size), color=(1, 0, 0),bold=True)
+        self.key_space = visual.TextStim(win=self.win, text='Space', pos=(0.7, 0.1-rect_size*2), color=(1, 0, 0),bold=True)
 
-        self.key_timestamps = []
+        self.seed = None
+        self.group = None # A/B
+        self.is_multiplayer = None
+        self.game_update_flag = False # 在多人模式，服务器发送beat信号设置此flag，让游戏进行一次更新
+        self.game_running = False
+        self.callbacks = {
+            'set_gamemode':self.callback_set_gamemode,
+            'set_group':self.callback_set_group,
+            'set_seed':self.callback_set_seed,
+            'space_pressed':self.callback_space_pressed,
+            'block_slide':self.callback_block_slide,
+            'block_rotate':self.callback_block_rotate,
+            'start_game':self.start_game,
+            'end_game':self.end_game,
+            'update_multiplayer_flag':self.callback_update_multiplayer_flag,
+            'multiplayer_standby':self.callback_multiplayer_standby
+        }
+        self.game_grapic_init()
+        self.backend_ctrl_param_init()
+        self.backend = game_backend(self.callbacks)
+        self.game_strategy = None
 
     def graphic_step(self): 
         map_colors = [tetris_color[self.mat_color[i, j]] 
@@ -75,14 +158,12 @@ class Trtris_map:
                   for j in range(4)]
         self.preview_area.colors = preview_colors
 
-        self.game_score_text.text = f'Score: {self.game_score}'
-        self.game_speed_text.text = f'Speed: {self.gamespeed}'
+        self.game_score_text.text = f'得分: {self.game_strategy.score}'
 
         self.gameplay_area.draw()
         self.preview_area.draw()
         self.next_block_text.draw()
         self.game_score_text.draw()
-        self.game_speed_text.draw()
         self.win.flip()
 
 
@@ -98,7 +179,6 @@ class Trtris_map:
                                                           self.map_size[1] - new_height:self.map_size[1]] != 0)):
                 self.mat_logic[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = 2 * new_blocks_mask
                 self.mat_color[spawn_x:spawn_x + new_width, self.map_size[1] - new_height:self.map_size[1]] = new_blocks_color * new_blocks_mask
-                self.spawn_flag = True
             else:
                 self.game_over = True
 
@@ -113,9 +193,8 @@ class Trtris_map:
             self.graphic_step()
             
             
-        [new_score,block_falled] = self.mat_iter()
-        self.game_score += new_score
-        self.gamespeed = self.game_score // 5 + 1
+        [n_eliminated,block_falled] = self.mat_iter()
+        self.game_strategy.get_score(n_eliminated)
         if block_falled or self.game_step_count == 0:
             pack_spawn()
         self.graphic_step()
@@ -178,78 +257,72 @@ class Trtris_map:
                 self.mat_color[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_color
                 self.graphic_step()
 
-
     def main_thread(self):
-        t_0 = core.getTime()
-        seed = np.random.randint(0,233333)
-        self.key_timestamps.append({"seed": seed})
+        # 首先启动后端
+        t_backend = threading.Thread(target=self.backend.run)
+        t_backend.start()
+        while True:
+            if not self.game_running:
+                continue # 高速忙等，确保收到后端信息立刻开始
+            self.game_grapic_init()
+            self.backend_ctrl_param_init()
+            if self.is_multiplayer:
+                self.game_round() # 多人模式只开一局
+            else:
+                while self.game_running:
+                    self.game_round() # 单人模式在收到停止信号之前一直进行
+
+    def game_round(self):
+        self.game_strategy.reset()
+        def show_tip():
+            self.win.flip()
+            operation_tip_text = self.game_strategy.multi_operation_tip if self.is_multiplayer else self.game_strategy.single_operation_tip
+            score_tip_text = self.game_strategy.multi_score_tip if self.is_multiplayer else self.game_strategy.single_score_tip
+            visual.TextStim(height = 0.04,win=self.win, text=operation_tip_text, pos=(-0.5,0.2), color=(1, 1, 1)).draw()
+            if self.is_multiplayer:
+                visual.TextStim(height = 0.04,win=self.win, text=self.game_strategy.get_multi_player_role_tip(self.backend.task), pos=(-0.5,0), color=(1, 1, 1)).draw()
+            visual.TextStim(height = 0.04,win=self.win, text=score_tip_text, pos=(-0.5,-0.2), color=(0.9, 0.9, 1)).draw()
+            self.win.flip()
+            core.wait(read_tip_time)
+            self.win.flip()
+
+        def immed_graphic_update():
+            if self.slide_direction != 0:
+                self.block_slide(self.slide_direction)    
+                self.slide_direction = 0             
+            if self.rotate_direction != 0:
+                self.block_rotate(self.rotate_direction)
+                self.rotate_direction = 0   
+        # 设置种子，在多人模式下使得种子相同
+        seed = self.seed if self.is_multiplayer else np.random.randint(0,233333) 
         np.random.seed(seed)
+
+        show_tip()
         while not self.game_over:
             t_begin = core.getTime()
-            iter_time = 1/(np.sqrt(self.gamespeed)+1)
-            while core.getTime() - t_begin < iter_time:
-                if not self.spawn_flag:
-                    break
-                slide_direction = 0
-                rotate_direction = 0
-                keys_pressed = event.getKeys()
-                if len(keys_pressed) > 0:
-                    self.key_timestamps.append({"keys": keys_pressed, "time": core.getTime() - t_0})
-                if 'z' in keys_pressed:
-                    slide_direction -= 1
-                if 'x' in keys_pressed:
-                    slide_direction += 1
-                if 'comma' in keys_pressed: # <
-                    rotate_direction += 1
-                if 'period' in keys_pressed: # >
-                    rotate_direction -= 1
-                if 'space' in keys_pressed: 
-                    self.spawn_flag = False
-                self.block_slide(slide_direction)
-                self.block_rotate(rotate_direction) 
-            self.game_step()
-        #print(self.key_timestamps)
-        with open("key_timestamps.yaml", "w") as file:
-            yaml.dump(self.key_timestamps, file)
-        
-    def main_thread_replay(self):
-        with open("key_timestamps.yaml", "r") as file:
-            key_timestamps = yaml.load(file, Loader=yaml.FullLoader)
-            np.random.seed(key_timestamps[0]['seed'])
-            idx = 1
-            t_0 = core.getTime()
-            entry = key_timestamps[idx]
-            keys = entry["keys"]
-            target_time = entry["time"]
-            while not self.game_over:
-                t_begin = core.getTime()
-                iter_time = 1/(np.sqrt(self.gamespeed)+1)
+            if not self.is_multiplayer:
+                # 单人模式，自行计时
+                self.game_update_flag = core.getTime() - t_begin >= step_time
+            else:
+                # 多人模式，响应按键事件回调设定的flag
+                immed_graphic_update()
+            while not self.game_update_flag:
+                self.backend.get_key_status()
+                # 等待到达更新时间
+                if self.space_pressed:
+                    self.game_update_flag = True
+                    self.space_pressed = False
+                    break 
+                if not self.is_multiplayer:
+                    # 单人模式，自行更新计时
+                    self.game_update_flag = core.getTime() - t_begin >= step_time
+                immed_graphic_update()
 
-                while core.getTime() - t_begin < iter_time:
-                    if not self.spawn_flag:
-                        break
-                    if(core.getTime() - t_0) > target_time:
-                        slide_direction = rotate_direction = 0
-                        if 'z' in keys:
-                            slide_direction += -1
-                        if 'x' in keys:
-                            slide_direction += 1
-                        if 'comma' in keys:  # <
-                            rotate_direction += 1
-                        if 'period' in keys:  # >
-                            rotate_direction += -1
-                        if 'space' in keys:
-                            self.spawn_flag = False
-                        self.block_slide(slide_direction)
-                        self.block_rotate(rotate_direction)
-                        idx += 1
-                        entry = key_timestamps[idx]
-                        keys = entry["keys"]
-                        target_time = entry["time"]
-
+            if self.game_update_flag:
                 self.game_step()
-                    
-    
+                self.game_update_flag = False
+            
+            
     def mat_iter(self):
 
         def block_touchdown():
@@ -279,9 +352,8 @@ class Trtris_map:
             for f_block in falling_blocks:
                 if f_block[1] == 0 or self.mat_logic[f_block[0],f_block[1] -1] == 1:
                     block_touchdown()
-                    score = block_eliminate()
-                    score = score ** 2
-                    return score,True
+                    n_eliminated = block_eliminate()
+                    return n_eliminated,True
             # 下落一格
             color = self.mat_color[f_block[0],f_block[1]]
             for f_block in falling_blocks:
@@ -292,18 +364,6 @@ class Trtris_map:
 
         return 0,False
 
-
-def main(start_mode):
-    map = Trtris_map()
-    if start_mode == 'normal':
-        map.main_thread()
-    elif start_mode == 'replay':
-        map.main_thread_replay()
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='游戏模式')
-    parser.add_argument('--mode', choices=['normal', 'replay'], default='normal', help='启动模式：正常模式或回放模式')
-
-    args = parser.parse_args()
-
-    main(args.mode)
+if __name__ == '__main__':
+    game = Trtris_map()
+    game.main_thread()
