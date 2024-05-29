@@ -99,6 +99,8 @@ class Trtris_map:
     def __init__(self, map_size = (10,20),win_shape = (800,800),
                  game_zone_width = 0.7, margin = 0.1) -> None:
         self.win = visual.Window(size=win_shape, winType='pyglet')
+        core.wait(5)
+        self.win.flip()# 确保psychopy测量好刷新率
         self.map_size = map_size
         rect_size = (game_zone_width - 2 * margin)/map_size[0] * 2 
         nElements = map_size[0] * map_size[1]
@@ -275,6 +277,8 @@ class Trtris_map:
 
     def game_round(self):
         self.game_strategy.reset()
+        self.game_grapic_init()
+        self.backend_ctrl_param_init()
         def show_tip():
             self.win.flip()
             operation_tip_text = self.game_strategy.multi_operation_tip if self.is_multiplayer else self.game_strategy.single_operation_tip
