@@ -27,8 +27,8 @@ class twisted_game_networking:
         self.udp_ctrl.reported_ip_to_beat_server()
         self.init_stage = 1
     
-    def send_key(self,keys):
-        self.udp_ctrl.send_data(json.dumps(keys).encode('utf-8'))
+    def send_data_to_server(self,data):
+        self.udp_ctrl.send_data(json.dumps(data).encode('utf-8'))
     
     class UDP_ctrl_protocol(DatagramProtocol):
         def __init__(self, callback:Callable[[dict],None]):
