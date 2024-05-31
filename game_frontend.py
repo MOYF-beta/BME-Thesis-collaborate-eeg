@@ -248,6 +248,15 @@ class Trtris_map:
             color = self.mat_color[f_block[0],f_block[1]]
             return [falling_blocks,x_min,x_max,y_min,y_max,color]
 
+    def get_falling_block_from_server(self,falling_blocks_new):
+        # TODO 在多人模式下，收到g时调用get_falling_block_from_server，更新绘图。不再使用来自本地的视图更新
+        [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
+        for f_block in falling_blocks:
+            self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
+        for nf_block in falling_blocks_new:
+            self.mat_logic[nf_block[0],nf_block[1]] = 2
+            self.mat_color[nf_block[0],nf_block[1]] = color
+
     @ignore_error
     def block_slide(self,direction):
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
@@ -260,6 +269,7 @@ class Trtris_map:
             [w,h] = falling_mask_logic.shape
             if not np.any(np.logical_and(falling_mask_logic == 2, 
                                         self.mat_logic[x_min+direction:x_min+w+direction,y_max-h+1:y_max+1] == 1)):
+                # TODO 对于多人模式，不渲染而将结果上传到服务器（包含新的falling blocks列表）
                 for f_block in falling_blocks:
                     self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
                 for f_block in falling_blocks:
@@ -278,7 +288,7 @@ class Trtris_map:
         falling_mask_color = np.rot90(self.mat_color[x_min:x_max+1,y_min:y_max+1],direction).copy()
         [w,h] = falling_mask_logic.shape
         if x_min+w <= self.map_size[0] and y_max+1 < self.map_size[1]:
-            
+            # TODO 对于多人模式，不渲染而将结果上传到服务器
             if not np.any(np.logical_and(falling_mask_logic == 2, self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] == 1)):
                 for f_block in falling_blocks:
                     self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0

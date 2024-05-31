@@ -76,6 +76,7 @@ class game_backend:
         keys = data.keys()
         if 's' in keys:
             # 收到来自服务器的更新节拍，给游戏更新flag打true
+            # TODO 在这里接受falling blocks，falling block由服务器仲裁得出（最后收到的falling block）
             if self.game_running and self.game_mode == 'multi':
                 self.callbacks['update_multiplayer_flag']()
             return
