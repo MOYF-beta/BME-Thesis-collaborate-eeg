@@ -59,7 +59,6 @@ py-cpuinfo==9.0.0
 pycparser==2.22
 pyglet==1.4.11
 Pygments==2.18.0
-pyinstaller-hooks-contrib==2024.6
 pyparallel==0.2.2
 pyparsing==3.1.2
 pypi-search==2.0
