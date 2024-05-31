@@ -173,6 +173,7 @@ class beat_server(cmd.Cmd):
                             pass#self._send_data(player.ip, data)
                         elif 'b' in data_dict: # 来自客户端的下落方块更新
                             self.newest_falling_blocks = data_dict['b']
+                            self.console.log(self.newest_falling_blocks)
                     except:
                         self.console.log(f"unknow msg : {data}")
             else:
@@ -291,6 +292,8 @@ class beat_server(cmd.Cmd):
             以一定速率向客户端发送最新的游戏局面
             '''
             while self.multiplayer_running:
+                if self.about_to_sync:
+                    continue
                 core.wait(net_config.update_freq)
                 if self.newest_falling_blocks is not None:
                     data_str = json.dumps({'f':self.newest_falling_blocks})

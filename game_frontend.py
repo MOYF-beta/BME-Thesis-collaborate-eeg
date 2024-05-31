@@ -60,6 +60,7 @@ class Trtris_map:
         self.game_score_text.text = f'Score: {self.game_score}'
         self.falling_missing = False
         self.update_lock = False
+        self.need_redraw = False
     
     def backend_ctrl_param_init(self): 
         self.slide_direction = 0
@@ -238,14 +239,13 @@ class Trtris_map:
         while self.update_lock:
             pass
         self.update_lock = True
-        print("set_falling")
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
         for f_block in falling_blocks:
             self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
         for nf_block in falling_blocks_new:
             self.mat_logic[nf_block[0],nf_block[1]] = 2
             self.mat_color[nf_block[0],nf_block[1]] = color
-        self.graphic_step()
+        self.need_redraw = True
         self.update_lock = False
 
     @ignore_error
@@ -343,8 +343,6 @@ class Trtris_map:
         if(len(keys_pressed)>0):
             print(keys_pressed)
         
-        
-        
         if self.space_pressed:
             if self.is_multiplayer:
                 self.backend.send_event_space_pressed()
@@ -389,6 +387,8 @@ class Trtris_map:
                 immed_graphic_update()
             while not self.game_update_flag:
                 self.get_key_status()
+                if self.need_redraw:
+                    self.graphic_step()
                 # 等待到达更新时间
                 if self.space_pressed:
                     self.game_update_flag = True
