@@ -204,6 +204,8 @@ class Trtris_map:
             self.falling_missing = False
         self.graphic_step()
         self.game_step_count += 1
+        falling_block = self._get_falling_blocks()
+        self.backend.send_falling_blocks(falling_block)
         self.update_lock = False
 
     def _get_falling_blocks(self, need_utils = False):
@@ -376,7 +378,7 @@ class Trtris_map:
                 # 多人模式，响应按键事件回调设定的flag
                 immed_graphic_update()
             while not self.game_update_flag:
-                self.backend.get_key_status()
+                self.get_key_status()
                 # 等待到达更新时间
                 if self.space_pressed:
                     self.game_update_flag = True
