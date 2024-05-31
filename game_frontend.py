@@ -78,7 +78,7 @@ class Trtris_map:
         self.game_update_flag = True
     
     def callback_space_pressed(self):
-        self.key_space.draw()
+        self.space_pressed = True
     
     def callback_multiplayer_standby(self,p1:bool,p2:bool):
         pass # TODO 根据需求2呈现玩家准备的状态
@@ -195,7 +195,8 @@ class Trtris_map:
                 np.random.shuffle(self.pack)
 
             self.next_block_no = self.pack[self.pack_no]
-            self.graphic_step()
+            if not self.is_multiplayer:
+                self.graphic_step()
             
             
         [n_eliminated,block_falled] = self.mat_iter()
@@ -234,7 +235,10 @@ class Trtris_map:
             return [falling_blocks,x_min,x_max,y_min,y_max,color]
 
     def set_falling_blocks(self,falling_blocks_new):
-
+        while self.update_lock:
+            pass
+        self.update_lock = True
+        print("set_falling")
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
         for f_block in falling_blocks:
             self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
@@ -242,9 +246,7 @@ class Trtris_map:
             self.mat_logic[nf_block[0],nf_block[1]] = 2
             self.mat_color[nf_block[0],nf_block[1]] = color
         self.graphic_step()
-
-    def send_falling_block_to_serve(self,falling_blocks):
-        self.backend.send_falling_blocks(falling_blocks)
+        self.update_lock = False
 
     @ignore_error
     def block_slide(self,direction):

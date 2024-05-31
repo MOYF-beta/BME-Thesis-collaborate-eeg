@@ -146,6 +146,7 @@ class beat_server(cmd.Cmd):
             self.console = Console()
             self.multiplayer_running : bool = False
             self.beat_thread : threading.Thread = None
+            self.sync_falling_block_thread : threading.Thread = None
             self.newest_falling_blocks = None
             self.about_to_sync = False
             self.sync_time = 0.005
@@ -260,8 +261,10 @@ class beat_server(cmd.Cmd):
             self.console.print(f'{[player.ip for player in self.players]}多人模式')
             time.sleep(net_config.read_tip_time)
             self.beat_thread = threading.Thread(target=self.sync_beat)
+            self.sync_falling_block_thread = threading.Thread(target=self.sync_falling_block)
             self.multiplayer_running = True
             self.beat_thread.start()
+            self.sync_falling_block_thread.start()
             self.console.print(f'{[player.ip for player in self.players]}开始运行')
 
         def sync_beat(self):
@@ -290,7 +293,8 @@ class beat_server(cmd.Cmd):
             while self.multiplayer_running:
                 core.wait(net_config.update_freq)
                 if self.newest_falling_blocks is not None:
-                    self.send_data_to_player_s(self.players,self.newest_falling_blocks)
+                    data_str = json.dumps({'f':self.newest_falling_blocks})
+                    self.send_data_to_player_s(self.players,data_str)
                     self.newest_falling_blocks = None
 
 
