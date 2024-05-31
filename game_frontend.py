@@ -52,6 +52,7 @@ class Trtris_map:
         self.game_score = 0
         self.game_over = False
         self.pack_no = 0
+        self.next_block_no = 0
         self.pack = np.array(range(7),dtype=np.int8)
         self.slide_direction = 0
         self.rotate_direction = 0
