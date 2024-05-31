@@ -203,10 +203,13 @@ class Trtris_map:
         if block_falled or self.game_step_count == 0 or self.falling_missing == True:
             pack_spawn()
             self.falling_missing = False
-        self.graphic_step()
         self.game_step_count += 1
-        falling_block = self._get_falling_blocks()
-        self.backend.send_falling_blocks(falling_block)
+        if self.is_multiplayer:
+            falling_block = self._get_falling_blocks()
+            self.backend.send_falling_blocks(falling_block)
+        else:
+            self.graphic_step()
+            
         self.update_lock = False
 
     def _get_falling_blocks(self, need_utils = False):
