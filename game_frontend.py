@@ -290,9 +290,9 @@ class Trtris_map:
                 new_falling_blocks = []
                 # 找出旋转后方块的坐标
                 for dx in range(w):
-                     for dy in range(h):
-                         if falling_mask_logic[dx,dy] == 2:
-                             new_falling_blocks.append(np.array([x_min + dx, y_max-dy+1]))
+                    for dy in range(h):
+                        if falling_mask_logic[dx,dy] == 2:
+                            new_falling_blocks.append(np.array([x_min + dx, y_min+dy]))
                 if self.is_multiplayer:
                     self.backend.send_falling_blocks(new_falling_blocks)
                 else:
@@ -301,7 +301,7 @@ class Trtris_map:
                     for nf_block in new_falling_blocks:
                         self.mat_logic[nf_block[0],nf_block[1]] = 2
                         self.mat_color[nf_block[0],nf_block[1]] = color
-                    self.graphic_step()
+                self.graphic_step()
     
     def main_thread(self):
         # 首先启动后端
@@ -329,15 +329,11 @@ class Trtris_map:
                 self.slide_direction -= 1
             if 'x' in keys_pressed:
                 self.slide_direction += 1
-            if self.slide_direction != 0:
-                self.block_slide(self.slide_direction)
         if not self.is_multiplayer or self.backend.task == 'rotate':
             if 'comma' in keys_pressed: # <
                 self.rotate_direction += 1
             if 'period' in keys_pressed: # >
                 self.rotate_direction -= 1
-            if self.rotate_direction != 0:
-                self.block_rotate(self.rotate_direction)
         if 'space' in keys_pressed: 
             self.space_pressed = True
         if(len(keys_pressed)>0):

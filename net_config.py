@@ -3,6 +3,6 @@ server_port = 23333
 ctrl_port = 23334
 p2p_port = 23345
 discover_keyword = "Ciallo~(∠・ω< )⌒★"
-step_time = 0.2
+step_time = 1
 read_tip_time = 10
 update_freq = 1/20 # 30帧，下落方块同步速率
