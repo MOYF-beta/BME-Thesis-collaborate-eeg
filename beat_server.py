@@ -170,7 +170,7 @@ class beat_server(cmd.Cmd):
                         # 先进行一下json格式校验在转发
                         data_dict = json.loads(data.decode('utf-8'))
                         if 'f' in data_dict: # 空格按键事件，直接转发
-                            self._send_data(player.ip, data)
+                            pass#self._send_data(player.ip, data)
                         elif 'b' in data_dict: # 来自客户端的下落方块更新
                             self.newest_falling_blocks = data_dict['b']
                     except:
