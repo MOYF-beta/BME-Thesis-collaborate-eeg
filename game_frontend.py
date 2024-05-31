@@ -78,8 +78,7 @@ class Trtris_map:
         self.game_update_flag = True
     
     def callback_space_pressed(self):
-        # self.space_pressed = True
-        pass
+        self.space_pressed = True
     
     def callback_multiplayer_standby(self,p1:bool,p2:bool):
         pass # TODO 根据需求2呈现玩家准备的状态
@@ -199,7 +198,7 @@ class Trtris_map:
             if not self.is_multiplayer:
                 self.graphic_step()
             
-            
+        print('.',end='')
         [n_eliminated,block_falled] = self.mat_iter()
         self.game_strategy.get_score(n_eliminated)
         if block_falled or self.game_step_count == 0 or self.falling_missing == True:
@@ -251,6 +250,8 @@ class Trtris_map:
 
     @ignore_error
     def block_slide(self,direction):
+        if direction == 0:
+            return
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
         if len(falling_blocks) == 0:
             self.falling_missing = True
@@ -275,6 +276,8 @@ class Trtris_map:
     
     @ignore_error
     def block_rotate(self,direction):
+        if direction == 0:
+            return
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
         if len(falling_blocks) == 0:
             self.falling_missing = True
@@ -326,18 +329,22 @@ class Trtris_map:
                 self.slide_direction -= 1
             if 'x' in keys_pressed:
                 self.slide_direction += 1
+            if self.slide_direction != 0:
+                self.block_slide(self.slide_direction)
         if not self.is_multiplayer or self.backend.task == 'rotate':
             if 'comma' in keys_pressed: # <
                 self.rotate_direction += 1
             if 'period' in keys_pressed: # >
                 self.rotate_direction -= 1
+            if self.rotate_direction != 0:
+                self.block_rotate(self.rotate_direction)
         if 'space' in keys_pressed: 
             self.space_pressed = True
         if(len(keys_pressed)>0):
             print(keys_pressed)
         
-        self.block_slide(self.slide_direction)
-        self.block_rotate(self.rotate_direction)
+        
+        
         if self.space_pressed:
             if self.is_multiplayer:
                 self.backend.send_event_space_pressed()
@@ -381,7 +388,6 @@ class Trtris_map:
                 # 多人模式，响应按键事件回调设定的flag
                 immed_graphic_update()
             while not self.game_update_flag:
-                print('.',end='')
                 self.get_key_status()
                 # 等待到达更新时间
                 if self.space_pressed:
