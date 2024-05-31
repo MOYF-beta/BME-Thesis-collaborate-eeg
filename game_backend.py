@@ -1,5 +1,6 @@
 import time
 from typing import Callable
+import numpy as np
 from psychopy import event
 from twisted_network_protocol import twisted_game_networking
 
@@ -26,81 +27,42 @@ class game_backend:
         while True:
             time.sleep(1)
 
-    def get_key_status(self):
-
-        game_backend.slide_direction = 0
-        game_backend.rotate_direction = 0
-        game_backend.space_pressed = False
-        keys_pressed = event.getKeys()
-        if self.game_mode == 'single' or self.task == 'slide':
-            if 'z' in keys_pressed:
-                game_backend.slide_direction -= 1
-            if 'x' in keys_pressed:
-                game_backend.slide_direction += 1
-        if self.game_mode == 'single' or self.task == 'rotate':
-            if 'comma' in keys_pressed: # <
-                game_backend.rotate_direction += 1
-            if 'period' in keys_pressed: # >
-                game_backend.rotate_direction -= 1
-        if 'space' in keys_pressed: 
-            game_backend.space_pressed = True
-        if(len(keys_pressed)>0):
-            print(keys_pressed)
-
-        if self.game_mode == 'multi':
-            # 多人模式，属于自己job的按键事件驱动游戏并发送给同伙
-            self.send_remote_key()
-        else:
-            self.callbacks['block_slide'](game_backend.slide_direction)
-            self.callbacks['block_rotate'](game_backend.rotate_direction)
-            if game_backend.space_pressed:
-                self.callbacks['space_pressed']()
-        
-            
-    def send_remote_key(self):
-        data = {'k':[]}
-        need_send = False
-        if self.task == 'slide' and game_backend.slide_direction != 0:
-            data['k'].append(1 if game_backend.slide_direction >0 else 2) 
-            need_send = True
-        elif self.task == 'rotate' and game_backend.rotate_direction != 0:
-            data['k'].append(3 if game_backend.slide_direction >0 else 4) 
-            need_send = True
-        if game_backend.space_pressed:
-            data['k'].append(5)
-            need_send = True
-        if need_send:
-            self.net_layer.send_key(data)
-
     def handle_game_data(self,data:dict):
         keys = data.keys()
-        if 's' in keys:
+        if 's' in keys: # S : Sync beat
             # 收到来自服务器的更新节拍，给游戏更新flag打true
-            # TODO 在这里接受falling blocks，falling block由服务器仲裁得出（最后收到的falling block）
             if self.game_running and self.game_mode == 'multi':
                 self.callbacks['update_multiplayer_flag']()
             return
-        if 'k' not in keys:
-            print(f"warning:unknow pack recived{data}")
-            return
-        key_event = data['k']
-        if 1 in key_event:
-            game_backend.slide_direction = 1
-        if 2 in key_event:
-            game_backend.slide_direction = -1
-        if 3 in key_event:
-            game_backend.rotate_direction = 1
-        if 4 in key_event:
-            game_backend.rotate_direction = -1
-        if 5 in key_event:
-            game_backend.space_pressed = True
         
-        self.callbacks['block_slide'](game_backend.slide_direction)
-        self.callbacks['block_rotate'](game_backend.rotate_direction)
-        if game_backend.space_pressed:
+        if 'f' in keys:
+            # 现在的思路下只是用来显示按下空格的
             self.callbacks['space_pressed']()
-        
+            return
 
+        if 'b' in keys: # falling Block
+            block_coord = data['b']
+            block_coord_np = []
+            for i in range(len(block_coord)/2):
+                block_coord_np.append(np.array([block_coord[i*2],block_coord[i*2+1]]))
+            self.callbacks['set_falling_blocks'](block_coord_np)
+            return
+
+        print(f"warning:unknow pack recived{data}")
+        return
+        
+    def send_falling_blocks(self,blocks_np):
+        blocks_list = []
+        for coord in blocks_np:
+            blocks_list.append(coord[0])
+            blocks_list.append(coord[1])
+
+        self.net_layer.send_data_to_server({'b':blocks_list})
+
+    def send_event_space_pressed(self):
+        self.net_layer.send_data_to_server({'f':1})
+
+    
     def handle_data(self,msg:dict):
         if 'op' not in msg.keys():
             # 没有op字段的视作游戏数据

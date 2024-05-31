@@ -240,9 +240,8 @@ class beat_server(cmd.Cmd):
             self.console.print(f'{[player.ip for player in self.players]}停止单人模式')
 
         '''多人游戏控制'''
-        def multi_standby(self):
-            pass # TODO 根据需求2添加准备（忙等两个玩家按下空格确认）
         def start_multi(self):
+            # TODO 服务器以一定频率发送下落方块报文（保留最近的操作），例如33ms(30fps)，在下落前5ms停止发送
             for player in self.players:
                 if player.group is None:
                     self.rich_warning("警告：有玩家未分组")

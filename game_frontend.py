@@ -1,4 +1,4 @@
-from psychopy import visual, core
+from psychopy import visual, core, event
 from game_backend import game_backend
 from tetris_shape import tetris_shapes,tetris_color
 import numpy as np
@@ -158,12 +158,11 @@ class Trtris_map:
             'set_group':self.callback_set_group,
             'set_seed':self.callback_set_seed,
             'space_pressed':self.callback_space_pressed,
-            'block_slide':self.callback_block_slide,
-            'block_rotate':self.callback_block_rotate,
             'start_game':self.start_game,
             'end_game':self.end_game,
             'update_multiplayer_flag':self.callback_update_multiplayer_flag,
-            'multiplayer_standby':self.callback_multiplayer_standby
+            'multiplayer_standby':self.callback_multiplayer_standby,
+            'set_falling_blocks':self.set_falling_blocks
         }
         self.game_grapic_init()
         self.backend_ctrl_param_init()
@@ -248,14 +247,17 @@ class Trtris_map:
             color = self.mat_color[f_block[0],f_block[1]]
             return [falling_blocks,x_min,x_max,y_min,y_max,color]
 
-    def get_falling_block_from_server(self,falling_blocks_new):
-        # TODO 在多人模式下，收到g时调用get_falling_block_from_server，更新绘图。不再使用来自本地的视图更新
+    def set_falling_blocks(self,falling_blocks_new):
+        
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
         for f_block in falling_blocks:
             self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
         for nf_block in falling_blocks_new:
             self.mat_logic[nf_block[0],nf_block[1]] = 2
             self.mat_color[nf_block[0],nf_block[1]] = color
+    def send_falling_block_to_serve(self,falling_blocks):
+        # TODO 在按键操作后、下落后、新生成方块后调用此函数向服务器汇报当前下落的方块
+        self.backend.send_falling_blocks(falling_blocks)
 
     @ignore_error
     def block_slide(self,direction):
@@ -295,6 +297,7 @@ class Trtris_map:
                 self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_logic
                 self.mat_color[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_color
                 self.graphic_step()
+    
     def main_thread(self):
         # 首先启动后端
         t_backend = threading.Thread(target=self.backend.run)
@@ -309,6 +312,36 @@ class Trtris_map:
             else:
                 while self.game_running:
                     self.game_round() # 单人模式在收到停止信号之前一直进行
+    
+    def get_key_status(self):
+
+        self.slide_direction = 0
+        self.rotate_direction = 0
+        self.space_pressed = False
+        keys_pressed = event.getKeys()
+        if not self.is_multiplayer or self.backend.task == 'slide':
+            if 'z' in keys_pressed:
+                self.slide_direction -= 1
+            if 'x' in keys_pressed:
+                self.slide_direction += 1
+        if not self.is_multiplayer or self.backend.task == 'rotate':
+            if 'comma' in keys_pressed: # <
+                self.rotate_direction += 1
+            if 'period' in keys_pressed: # >
+                self.rotate_direction -= 1
+        if 'space' in keys_pressed: 
+            game_backend.space_pressed = True
+        if(len(keys_pressed)>0):
+            print(keys_pressed)
+
+        if self.game_mode == 'multi':
+            # 多人模式，属于自己job的按键事件驱动游戏并发送给同伙
+            self.send_remote_key()
+        else:
+            self.callbacks['block_slide'](game_backend.slide_direction)
+            self.callbacks['block_rotate'](game_backend.rotate_direction)
+            if game_backend.space_pressed:
+                self.callbacks['space_pressed']()
 
     def game_round(self):
         self.game_strategy.reset()
