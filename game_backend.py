@@ -6,10 +6,6 @@ from twisted_network_protocol import twisted_game_networking
 
 class game_backend:
 
-    slide_direction = 0
-    rotate_direction = 0
-    space_pressed = False
-
     def __init__(self,callbacks:dict[str,Callable]) -> None:
 
         self.callbacks = callbacks

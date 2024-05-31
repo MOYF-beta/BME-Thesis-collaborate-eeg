@@ -331,7 +331,7 @@ class Trtris_map:
             if 'period' in keys_pressed: # >
                 self.rotate_direction -= 1
         if 'space' in keys_pressed: 
-            game_backend.space_pressed = True
+            self.space_pressed = True
         if(len(keys_pressed)>0):
             print(keys_pressed)
 
