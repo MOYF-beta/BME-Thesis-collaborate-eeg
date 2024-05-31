@@ -76,19 +76,8 @@ class Trtris_map:
     def callback_update_multiplayer_flag(self):
         self.game_update_flag = True
     
-    def callback_block_slide(self,slide_direction):
-        self.slide_direction = slide_direction
-        if self.slide_direction == 1:
-            self.key_x.draw()
-        elif self.slide_direction == -1:
-            self.key_z.draw()
-    
-    def callback_block_rotate(self,rotate_direction):
-        self.rotate_direction = rotate_direction
-        if self.rotate_direction == -1:
-            self.key_rr.draw()
-        elif self.rotate_direction == 1:
-            self.key_rl.draw()
+    def callback_space_pressed(self):
+        self.key_space.draw()
     
     def callback_multiplayer_standby(self,p1:bool,p2:bool):
         pass # TODO 根据需求2呈现玩家准备的状态
@@ -137,10 +126,6 @@ class Trtris_map:
         self.next_block_text = visual.TextStim(win=self.win, text='Next:', pos=(0.6, 0.6 + rect_size), color=(1, 1, 1))
         self.game_score_text = visual.TextStim(win=self.win, text='Score: 0', pos=(0.6, 0.2-rect_size), color=(1, 1, 1))
 
-        self.key_z = visual.TextStim(win=self.win, text='Z', pos=(0.4, 0.1-rect_size), color=(1, 0, 0),bold=True)
-        self.key_x = visual.TextStim(win=self.win, text='X', pos=(0.5, 0.1-rect_size), color=(1, 0, 0),bold=True)
-        self.key_rl = visual.TextStim(win=self.win, text='<', pos=(0.6, 0.1-rect_size), color=(1, 0, 0),bold=True)
-        self.key_rr = visual.TextStim(win=self.win, text='>', pos=(0.7, 0.1-rect_size), color=(1, 0, 0),bold=True)
         self.key_space = visual.TextStim(win=self.win, text='Space', pos=(0.7, 0.1-rect_size*2), color=(1, 0, 0),bold=True)
 
         self.seed = None
@@ -287,17 +272,23 @@ class Trtris_map:
             print("falling block missing!")
             return
         falling_mask_logic = np.rot90(self.mat_logic[x_min:x_max+1,y_min:y_max+1],direction).copy()
-        falling_mask_color = np.rot90(self.mat_color[x_min:x_max+1,y_min:y_max+1],direction).copy()
         [w,h] = falling_mask_logic.shape
         if x_min+w <= self.map_size[0] and y_max+1 < self.map_size[1]:
             if not np.any(np.logical_and(falling_mask_logic == 2, self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] == 1)):
+                new_falling_blocks = []
+                # 找出旋转后方块的坐标
+                for dx in range(w):
+                     for dy in range(h):
+                         if falling_mask_logic[dx,dy] == 2:
+                             new_falling_blocks.append(np.array([x_min + dx, y_max-dy+1]))
                 if self.is_multiplayer:
-                    pass #TODO 旋转后的坐标
+                    self.backend.send_falling_blocks(new_falling_blocks)
                 else:
                     for f_block in falling_blocks:
                         self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
-                    self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_logic
-                    self.mat_color[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_color
+                    for nf_block in new_falling_blocks:
+                        self.mat_logic[nf_block[0],nf_block[1]] = 2
+                        self.mat_color[nf_block[0],nf_block[1]] = color
                     self.graphic_step()
     
     def main_thread(self):
@@ -336,8 +327,8 @@ class Trtris_map:
         if(len(keys_pressed)>0):
             print(keys_pressed)
 
-        if self.game_mode == 'multi':
-            # 多人模式，属于自己job的按键事件驱动游戏并发送给同伙
+        if self.is_multiplayer:
+            # 多人模式需要让对方也能看见空格
             if self.space_pressed:
                 self.backend.send_event_space_pressed()
         

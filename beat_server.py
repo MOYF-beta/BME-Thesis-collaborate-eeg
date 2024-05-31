@@ -146,6 +146,7 @@ class beat_server(cmd.Cmd):
             self.console = Console()
             self.multiplayer_running : bool = False
             self.beat_thread : threading.Thread = None
+            self.newest_falling_blocks = None
             self.about_to_sync = False
             self.sync_time = 0.005
 
@@ -166,8 +167,11 @@ class beat_server(cmd.Cmd):
                 for player in self.players:
                     try:
                         # 先进行一下json格式校验在转发
-                        json.loads(data.decode('utf-8'))
-                        self._send_data(player.ip, data)
+                        data_dict = json.loads(data.decode('utf-8'))
+                        if 'f' in data_dict: # 空格按键事件，直接转发
+                            self._send_data(player.ip, data)
+                        elif 'b' in data_dict: # 来自客户端的下落方块更新
+                            self.newest_falling_blocks = data_dict['f']
                     except:
                         self.console.log(f"unknow msg : {data}")
             else:
@@ -241,7 +245,6 @@ class beat_server(cmd.Cmd):
 
         '''多人游戏控制'''
         def start_multi(self):
-            # TODO 服务器以一定频率发送下落方块报文（保留最近的操作），例如33ms(30fps)，在下落前5ms停止发送
             for player in self.players:
                 if player.group is None:
                     self.rich_warning("警告：有玩家未分组")
@@ -261,7 +264,7 @@ class beat_server(cmd.Cmd):
             self.beat_thread.start()
             self.console.print(f'{[player.ip for player in self.players]}开始运行')
 
-        def sync_beat(self,step_time = net_config.step_time):
+        def sync_beat(self):
             '''
             {"k":[...]}
             k是按键事件，z=1,x=2,<=3,>=4,space=5
@@ -270,7 +273,7 @@ class beat_server(cmd.Cmd):
             '''
             while self.multiplayer_running:
                 time = core.getTime()
-                while core.getTime() - time <= step_time - self.sync_time:
+                while core.getTime() - time <= net_config.step_time - self.sync_time:
                     core.wait(0.001)
                 # 即将同步，禁止发送按键（直接丢弃客户端收到的包）
                 self.about_to_sync = True
@@ -280,6 +283,17 @@ class beat_server(cmd.Cmd):
                 core.wait(self.sync_time) # 确保客户端已经执行了下落操作。
                 self.about_to_sync = False
         
+        def sync_falling_block(self):
+            '''
+            以一定速率向客户端发送最新的游戏局面
+            '''
+            while self.multiplayer_running:
+                core.wait(net_config.update_freq)
+                if self.newest_falling_blocks is not None:
+                    self.send_data_to_player_s(self.players,self.newest_falling_blocks)
+                    self.newest_falling_blocks = None
+
+
         def end_multi(self):
             self.send_data_to_player_s(self.players,json.dumps({
                 'op':'em'
