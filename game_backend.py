@@ -54,8 +54,8 @@ class game_backend:
     def send_falling_blocks(self,blocks_np):
         blocks_list = []
         for coord in blocks_np:
-            blocks_list.append(coord[0])
-            blocks_list.append(coord[1])
+            blocks_list.append(int(coord[0]))
+            blocks_list.append(int(coord[1]))
 
         self.net_layer.send_data_to_server({'b':blocks_list})
 
