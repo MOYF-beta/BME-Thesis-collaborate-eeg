@@ -28,6 +28,8 @@ class twisted_game_networking:
         self.init_stage = 1
     
     def send_data_to_server(self,data):
+        for i in range(len(data)):
+            data[i] = int(data[i])
         self.udp_ctrl.send_data(json.dumps(data).encode('utf-8'))
     
     class UDP_ctrl_protocol(DatagramProtocol):
