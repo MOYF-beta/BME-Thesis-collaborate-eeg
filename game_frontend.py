@@ -44,11 +44,6 @@ class Trtris_map:
         else:
             self.game_strategy = group_B()
     
-    def callback_space_pressed(self):
-        self.space_pressed = True
-        self.key_space.draw()
-        self.game_strategy.space_bouns()
-    
     def game_grapic_init(self):
         # convoluted shit
         self.game_step_count = 0
@@ -248,15 +243,16 @@ class Trtris_map:
             return [falling_blocks,x_min,x_max,y_min,y_max,color]
 
     def set_falling_blocks(self,falling_blocks_new):
-        
+
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
         for f_block in falling_blocks:
             self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
         for nf_block in falling_blocks_new:
             self.mat_logic[nf_block[0],nf_block[1]] = 2
             self.mat_color[nf_block[0],nf_block[1]] = color
+        self.graphic_step()
+
     def send_falling_block_to_serve(self,falling_blocks):
-        # TODO 在按键操作后、下落后、新生成方块后调用此函数向服务器汇报当前下落的方块
         self.backend.send_falling_blocks(falling_blocks)
 
     @ignore_error
@@ -271,13 +267,17 @@ class Trtris_map:
             [w,h] = falling_mask_logic.shape
             if not np.any(np.logical_and(falling_mask_logic == 2, 
                                         self.mat_logic[x_min+direction:x_min+w+direction,y_max-h+1:y_max+1] == 1)):
-                # TODO 对于多人模式，不渲染而将结果上传到服务器（包含新的falling blocks列表）
-                for f_block in falling_blocks:
-                    self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
-                for f_block in falling_blocks:
-                    self.mat_logic[f_block[0] + direction,f_block[1] ] = 2
-                    self.mat_color[f_block[0] + direction,f_block[1]] = color
-                self.graphic_step()
+                if self.is_multiplayer:
+                    for coord in falling_blocks:
+                        coord[0] = coord[0] + direction
+                    self.backend.send_falling_blocks(falling_blocks)
+                else:
+                    for f_block in falling_blocks:
+                        self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
+                    for f_block in falling_blocks:
+                        self.mat_logic[f_block[0] + direction,f_block[1] ] = 2
+                        self.mat_color[f_block[0] + direction,f_block[1]] = color
+                    self.graphic_step()
     
     @ignore_error
     def block_rotate(self,direction):
@@ -290,13 +290,15 @@ class Trtris_map:
         falling_mask_color = np.rot90(self.mat_color[x_min:x_max+1,y_min:y_max+1],direction).copy()
         [w,h] = falling_mask_logic.shape
         if x_min+w <= self.map_size[0] and y_max+1 < self.map_size[1]:
-            # TODO 对于多人模式，不渲染而将结果上传到服务器
             if not np.any(np.logical_and(falling_mask_logic == 2, self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] == 1)):
-                for f_block in falling_blocks:
-                    self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
-                self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_logic
-                self.mat_color[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_color
-                self.graphic_step()
+                if self.is_multiplayer:
+                    pass #TODO 旋转后的坐标
+                else:
+                    for f_block in falling_blocks:
+                        self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
+                    self.mat_logic[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_logic
+                    self.mat_color[x_min:x_min+w,y_max-h+1:y_max+1] = falling_mask_color
+                    self.graphic_step()
     
     def main_thread(self):
         # 首先启动后端
@@ -336,12 +338,15 @@ class Trtris_map:
 
         if self.game_mode == 'multi':
             # 多人模式，属于自己job的按键事件驱动游戏并发送给同伙
-            self.send_remote_key()
-        else:
-            self.callbacks['block_slide'](game_backend.slide_direction)
-            self.callbacks['block_rotate'](game_backend.rotate_direction)
-            if game_backend.space_pressed:
-                self.callbacks['space_pressed']()
+            if self.space_pressed:
+                self.backend.send_event_space_pressed()
+        
+        self.block_slide(self.slide_direction)
+        self.block_rotate(self.rotate_direction)
+        if self.space_pressed:
+            self.space_pressed = True
+            self.key_space.draw()
+            self.game_strategy.space_bouns()
 
     def game_round(self):
         self.game_strategy.reset()
