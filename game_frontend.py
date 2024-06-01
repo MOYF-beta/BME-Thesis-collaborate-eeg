@@ -1,3 +1,4 @@
+import time
 from psychopy import visual, core, event
 from game_backend import game_backend
 from tetris_shape import tetris_shapes,tetris_color
@@ -105,7 +106,7 @@ class Trtris_map:
     def key_cooldown(self):
         while True:
             self.key_ready = True
-            core.wait(net_config.update_freq)
+            time.sleep(net_config.update_freq)
 
     def __init__(self, map_size = net_config.map_size,win_shape = (800,800),
                  game_zone_width = 0.7, margin = 0.1) -> None:
