@@ -308,10 +308,10 @@ class beat_server(cmd.Cmd):
                     # TODO 添加一个对比，如果没有变化就不发送
 
         def get_falling_block_coords(self,data):
-            block_coord_np = []
+            mat = np.zeros(net_config.map_size)
             for i in range(len(data)/2):
-                block_coord_np.append(np.array([data[i*2],data[i*2+1]]))
-            return block_coord_np
+                mat[data[i*2],data[i*2+1]] = 1
+            return mat
         
         def end_multi(self):
             self.send_data_to_player_s(self.players,json.dumps({

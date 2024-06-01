@@ -4,6 +4,7 @@ from tetris_shape import tetris_shapes,tetris_color
 import numpy as np
 import threading
 from net_config import step_time,read_tip_time
+import net_config
 from game_strategy import group_A,group_B
 
 class Trtris_map:
@@ -102,7 +103,7 @@ class Trtris_map:
                 positions.append((x, y))
         return positions
 
-    def __init__(self, map_size = (10,20),win_shape = (800,800),
+    def __init__(self, map_size = net_config.map_size,win_shape = (800,800),
                  game_zone_width = 0.7, margin = 0.1) -> None:
         self.win = visual.Window(size=win_shape, winType='pyglet')
         core.wait(5)
