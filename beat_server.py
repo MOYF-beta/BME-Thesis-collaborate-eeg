@@ -152,7 +152,7 @@ class beat_server(cmd.Cmd):
             self.pack_timestamp = 0
             self.new_falling_block_flag = False
             self.about_to_sync = False
-            self.sync_time = 0.005
+            self.sync_time = 0.01
 
         def reported_ip_to_beat_server(self):
             while not self.reported_ip:

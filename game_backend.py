@@ -32,6 +32,8 @@ class game_backend:
             for i in range(len(block_coord)//2):
                 block_coord_np.append(np.array([block_coord[i*2],block_coord[i*2+1]]))
             self.callbacks['set_falling_blocks'](block_coord_np,data['t'])
+            if 's' in keys:
+                self.callbacks['set_falling_sync_flag']()
         
         if 's' in keys: # S : Sync beat
             print(' ',end='')

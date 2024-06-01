@@ -62,7 +62,11 @@ class Trtris_map:
         self.falling_missing = False
         self.update_lock = False
         self.need_redraw = False
+        block_synced = False
     
+    def callback_block_synced(self):
+        self.block_synced = True
+
     def backend_ctrl_param_init(self): 
         self.slide_direction = 0
         self.rotate_direction = 0
@@ -155,13 +159,15 @@ class Trtris_map:
             'end_game':self.end_game,
             'update_multiplayer_flag':self.callback_update_multiplayer_flag,
             'multiplayer_standby':self.callback_multiplayer_standby,
-            'set_falling_blocks':self.set_falling_blocks
+            'set_falling_blocks':self.set_falling_blocks,
+            'set_falling_sync_flag':self.callback_block_synced
         }
         self.game_grapic_init()
         self.backend_ctrl_param_init()
         self.backend = game_backend(self.callbacks)
         self.game_strategy = None
         self.key_ready = False
+        self.block_synced = False
         self.sync_data_thread = threading.Thread(target=self.sync_game)
         self.sync_data_thread.start()
 
@@ -325,7 +331,7 @@ class Trtris_map:
                     for nf_block in new_falling_blocks:
                         self.mat_logic[nf_block[0],nf_block[1]] = 2
                         self.mat_color[nf_block[0],nf_block[1]] = color
-                self.graphic_step()
+                    self.graphic_step()
     
     def main_thread(self):
         # 首先启动后端
@@ -422,7 +428,10 @@ class Trtris_map:
                 immed_graphic_update()
 
             if self.game_update_flag:
+                while not self.block_synced:
+                    pass
                 self.game_step()
+                self.block_synced = False
                 self.game_update_flag = False
             
     def mat_iter(self):
