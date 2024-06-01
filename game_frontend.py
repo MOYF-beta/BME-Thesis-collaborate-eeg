@@ -110,7 +110,7 @@ class Trtris_map:
             self.key_ready = True
             time.sleep(net_config.update_freq)
             falling_blocks = self._get_falling_blocks()
-            self.backend.send_falling_blocks(falling_blocks)
+            self.backend.send_falling_blocks(falling_blocks,self.game_step_count)
 
     def __init__(self, map_size = net_config.map_size,win_shape = (800,800),
                  game_zone_width = 0.7, margin = 0.1) -> None:
