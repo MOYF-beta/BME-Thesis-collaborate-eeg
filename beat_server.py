@@ -148,6 +148,7 @@ class beat_server(cmd.Cmd):
             self.beat_thread : threading.Thread = None
             self.sync_falling_block_thread : threading.Thread = None
             self.newest_falling_blocks = np.zeros(net_config.map_size)
+            self.block_data = None
             self.pack_timestamp = 0
             self.new_falling_block_flag = False
             self.about_to_sync = False
@@ -182,6 +183,7 @@ class beat_server(cmd.Cmd):
                                 self.send_data_to_player_s(self.players,data)
                                 self.pack_timestamp = timestamp
                                 self.newest_falling_blocks = newest_falling_blocks
+                                self.block_data = data
                                 core.wait(0.05)
                                 self.send_data_to_player_s(self.players,data)
 
@@ -293,25 +295,19 @@ class beat_server(cmd.Cmd):
                     core.wait(0.001)
                 # 即将同步，禁止发送按键（直接丢弃客户端收到的包）
                 self.about_to_sync = True
-                self.send_data_to_player_s(self.players,json.dumps({
-                    's':1
-                }))
+                if self.block_data is not None:
+                    self.send_data_to_player_s(self.players,json.dumps({
+                        's':1,
+                        'b':self.block_data
+                    }))
+                else:
+                    self.send_data_to_player_s(self.players,json.dumps({
+                        's':1
+                    }))
+                self.block_data = None
+                # TODO 干脆在同步beat的时候同步一下下落方块省得出问题
                 core.wait(self.sync_time) # 确保客户端已经执行了下落操作。
                 self.about_to_sync = False
-        
-        def sync_falling_block(self):
-            '''
-            以一定速率向客户端发送最新的游戏局面
-            '''
-            while self.multiplayer_running:
-                if self.about_to_sync:
-                    continue
-                core.wait(net_config.update_freq)
-                if self.newest_falling_blocks is not None:
-                    data_str = json.dumps({'f':self.newest_falling_blocks})
-                    self.send_data_to_player_s(self.players,data_str)
-                    self.newest_falling_blocks = None
-                    # TODO 添加一个对比，如果没有变化就不发送
 
         def get_falling_block_coords(self,data):
             mat = np.zeros(net_config.map_size)

@@ -35,7 +35,7 @@ class game_backend:
             # 现在的思路下只是用来显示按下空格的
             self.callbacks['space_pressed']()
 
-        elif 'b' in keys: # falling Block
+        if 'b' in keys: # falling Block
             block_coord = data['b']
             block_coord_np = []
             for i in range(len(block_coord)//2):
