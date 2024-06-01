@@ -147,7 +147,7 @@ class beat_server(cmd.Cmd):
             self.multiplayer_running : bool = False
             self.beat_thread : threading.Thread = None
             self.sync_falling_block_thread : threading.Thread = None
-            self.newest_falling_blocks = None
+            self.newest_falling_blocks = np.zeros(net_config.map_size)
             self.new_falling_block_flag = False
             self.about_to_sync = False
             self.sync_time = 0.005
@@ -177,9 +177,8 @@ class beat_server(cmd.Cmd):
                         if 'b' in data_dict: # 来自客户端的下落方块更新
                             newest_falling_blocks = self.get_falling_block_coords(data_dict['b'])
                             if not np.array_equal(self.newest_falling_blocks,newest_falling_blocks):
-                                self.newest_falling_blocks = newest_falling_blocks
                                 self.send_data_to_player_s(self.players,data)
-                            self.console.log(self.newest_falling_blocks)
+                                self.newest_falling_blocks = newest_falling_blocks
                     except:
                         self.console.log(f"unknow msg : {data}")
             else:
@@ -200,10 +199,13 @@ class beat_server(cmd.Cmd):
             self.transport.write(data,(ip,self.ctrl_port))
 
         def send_data_to_player_s(self,player_s,data):
-            if not isinstance(player_s, list):
-                player_s = [player_s]
-            for player in player_s:
-                self._send_data(player.ip,data)
+            def send(player_s,data):
+                if not isinstance(player_s, list):
+                    player_s = [player_s]
+                for player in player_s:
+                    self._send_data(player.ip,data)
+            t = threading.Thread(target=send,args=[player_s,data])
+            t.start()
         
         def rich_warning(self,msg):
             message = msg
@@ -239,8 +241,6 @@ class beat_server(cmd.Cmd):
             for player in self.players:
                 self.send_data_to_player_s(player,json.dumps({
                         'op':'ss'}))
-            time.sleep(net_config.read_tip_time)
-            self.console.print(f'{[player.ip for player in self.players]}开始运行')
                         
             
             

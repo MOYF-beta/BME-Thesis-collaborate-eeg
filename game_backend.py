@@ -1,7 +1,7 @@
 import time
 from typing import Callable
 import numpy as np
-from psychopy import event
+from psychopy import core
 from twisted_network_protocol import twisted_game_networking
 
 class game_backend:
@@ -51,6 +51,8 @@ class game_backend:
             blocks_list.append(int(coord[1]))
 
         self.net_layer.send_data_to_server({'b':blocks_list})
+        core.wait(0.05)
+        self.net_layer.send_data_to_server({'b':blocks_list})# 重发一遍
 
     def send_event_space_pressed(self):
         self.net_layer.send_data_to_server({'f':1})
