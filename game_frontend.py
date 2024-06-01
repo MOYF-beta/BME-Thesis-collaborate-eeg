@@ -47,7 +47,6 @@ class Trtris_map:
     
     def game_grapic_init(self):
         # convoluted shit
-        self.game_step_count = 0
         self.mat_logic = np.zeros(self.map_size,dtype=np.int8)
         self.mat_color = np.zeros(self.map_size,dtype=np.int8)
         self.game_score = 0
@@ -131,6 +130,7 @@ class Trtris_map:
 
         self.key_space = visual.TextStim(win=self.win, text='Space', pos=(0.7, 0.1-rect_size*2), color=(1, 0, 0),bold=True)
 
+        self.game_step_count = 0
         self.seed = None
         self.group = None # A/B
         self.is_multiplayer = None
@@ -199,7 +199,12 @@ class Trtris_map:
             self.next_block_no = self.pack[self.pack_no]
             if not self.is_multiplayer:
                 self.graphic_step()
-            
+        if self.is_multiplayer:
+            falling_block = self._get_falling_blocks()
+            self.backend.send_falling_blocks(falling_block,self.game_step_count)
+        else:
+            self.graphic_step()
+        
         print('.',end='')
         [n_eliminated,block_falled] = self.mat_iter()
         self.game_strategy.get_score(n_eliminated)
@@ -207,11 +212,7 @@ class Trtris_map:
             pack_spawn()
             self.falling_missing = False
         self.game_step_count += 1
-        if self.is_multiplayer:
-            falling_block = self._get_falling_blocks()
-            self.backend.send_falling_blocks(falling_block,self.game_step_count)
-        else:
-            self.graphic_step()
+        
             
         self.update_lock = False
 
