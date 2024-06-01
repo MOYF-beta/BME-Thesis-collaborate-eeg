@@ -236,6 +236,8 @@ class Trtris_map:
             return [falling_blocks,x_min,x_max,y_min,y_max,color]
 
     def set_falling_blocks(self,falling_blocks_new):
+        if len(falling_blocks_new) == 0:
+            return
         while self.update_lock:
             pass
         self.update_lock = True
@@ -385,6 +387,7 @@ class Trtris_map:
                 self.get_key_status()
                 if self.need_redraw:
                     self.graphic_step()
+                    self.need_redraw = False
                 # 等待到达更新时间
                 if self.space_pressed:
                     self.game_update_flag = True

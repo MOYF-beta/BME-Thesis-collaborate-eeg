@@ -26,6 +26,7 @@ class game_backend:
     def handle_game_data(self,data:dict):
         keys = data.keys()
         if 's' in keys: # S : Sync beat
+            print(' ',end='')
             # 收到来自服务器的更新节拍，给游戏更新flag打true
             if self.game_running and self.game_mode == 'multi':
                 self.callbacks['update_multiplayer_flag']()

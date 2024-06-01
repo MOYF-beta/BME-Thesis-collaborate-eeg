@@ -148,6 +148,7 @@ class beat_server(cmd.Cmd):
             self.beat_thread : threading.Thread = None
             self.sync_falling_block_thread : threading.Thread = None
             self.newest_falling_blocks = None
+            self.new_falling_block_flag = False
             self.about_to_sync = False
             self.sync_time = 0.005
 
@@ -171,8 +172,13 @@ class beat_server(cmd.Cmd):
                         data_dict = json.loads(data.decode('utf-8'))
                         if 'f' in data_dict: # 空格按键事件，直接转发
                             pass#self._send_data(player.ip, data)
-                        elif 'b' in data_dict: # 来自客户端的下落方块更新
-                            self.newest_falling_blocks = data_dict['b']
+                        # TODO 改为仅在下落的那一刻更新 s-> 等待收到前端blocks -> 收到一个后立即向所有前端发送blocks
+                        # 对前端，正常渲染，收到s后先上传，然后等待收到 blocks后设置自身的falling block，然后再在逻辑上计算
+                        if 'b' in data_dict: # 来自客户端的下落方块更新
+                            newest_falling_blocks = self.get_falling_block_coords(data_dict['b'])
+                            if not np.array_equal(self.newest_falling_blocks,newest_falling_blocks):
+                                self.newest_falling_blocks = newest_falling_blocks
+                                self.send_data_to_player_s(self.players,data)
                             self.console.log(self.newest_falling_blocks)
                     except:
                         self.console.log(f"unknow msg : {data}")
@@ -262,10 +268,10 @@ class beat_server(cmd.Cmd):
             self.console.print(f'{[player.ip for player in self.players]}多人模式')
             time.sleep(net_config.read_tip_time)
             self.beat_thread = threading.Thread(target=self.sync_beat)
-            self.sync_falling_block_thread = threading.Thread(target=self.sync_falling_block)
+            #self.sync_falling_block_thread = threading.Thread(target=self.sync_falling_block)
             self.multiplayer_running = True
             self.beat_thread.start()
-            self.sync_falling_block_thread.start()
+            #self.sync_falling_block_thread.start()
             self.console.print(f'{[player.ip for player in self.players]}开始运行')
 
         def sync_beat(self):
@@ -299,8 +305,14 @@ class beat_server(cmd.Cmd):
                     data_str = json.dumps({'f':self.newest_falling_blocks})
                     self.send_data_to_player_s(self.players,data_str)
                     self.newest_falling_blocks = None
+                    # TODO 添加一个对比，如果没有变化就不发送
 
-
+        def get_falling_block_coords(self,data):
+            block_coord_np = []
+            for i in range(len(data)/2):
+                block_coord_np.append(np.array([data[i*2],data[i*2+1]]))
+            return block_coord_np
+        
         def end_multi(self):
             self.send_data_to_player_s(self.players,json.dumps({
                 'op':'em'
