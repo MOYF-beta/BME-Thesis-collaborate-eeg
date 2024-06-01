@@ -103,10 +103,14 @@ class Trtris_map:
                 positions.append((x, y))
         return positions
 
-    def key_cooldown(self):
+    def sync_game(self):
         while True:
+            if not self.is_multiplayer or not self.game_running:
+                continue
             self.key_ready = True
             time.sleep(net_config.update_freq)
+            falling_blocks = self._get_falling_blocks()
+            self.backend.send_falling_blocks(falling_blocks)
 
     def __init__(self, map_size = net_config.map_size,win_shape = (800,800),
                  game_zone_width = 0.7, margin = 0.1) -> None:
@@ -158,8 +162,8 @@ class Trtris_map:
         self.backend = game_backend(self.callbacks)
         self.game_strategy = None
         self.key_ready = False
-        self.key_op_cooldown_thread = threading.Thread(target=self.key_cooldown)
-        self.key_op_cooldown_thread.start()
+        self.sync_data_thread = threading.Thread(target=self.sync_game)
+        self.sync_data_thread.start()
 
     def graphic_step(self): 
         map_colors = [tetris_color[self.mat_color[i, j]] 
