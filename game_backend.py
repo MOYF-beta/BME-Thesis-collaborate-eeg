@@ -50,9 +50,9 @@ class game_backend:
             blocks_list.append(int(coord[0]))
             blocks_list.append(int(coord[1]))
 
-        self.net_layer.send_data_to_server({'b':blocks_list})
+        self.net_layer.send_data_to_server({'b':blocks_list,'t':timestamp})
         core.wait(0.05)
-        self.net_layer.send_data_to_server({'b':blocks_list})# 重发一遍
+        self.net_layer.send_data_to_server({'b':blocks_list,'t':timestamp})# 重发一遍
 
     def send_event_space_pressed(self):
         self.net_layer.send_data_to_server({'f':1})
