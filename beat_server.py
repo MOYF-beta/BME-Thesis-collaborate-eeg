@@ -183,7 +183,7 @@ class beat_server(cmd.Cmd):
                                 self.send_data_to_player_s(self.players,data)
                                 self.pack_timestamp = timestamp
                                 self.newest_falling_blocks = newest_falling_blocks
-                                self.block_data = data
+                                self.block_data = data_dict['b']
                                 core.wait(0.05)
                                 self.send_data_to_player_s(self.players,data)
 
@@ -298,7 +298,8 @@ class beat_server(cmd.Cmd):
                 if self.block_data is not None:
                     self.send_data_to_player_s(self.players,json.dumps({
                         's':1,
-                        'b':self.block_data
+                        'b':self.block_data,
+                        't':self.pack_timestamp
                     }))
                 else:
                     self.send_data_to_player_s(self.players,json.dumps({
