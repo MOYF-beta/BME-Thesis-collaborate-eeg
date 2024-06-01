@@ -270,7 +270,7 @@ class Trtris_map:
         self.update_lock = True
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
         for f_block in falling_blocks:
-            if self.mat_logic[f_block[0],f_block[1]] != 0:
+            if self.mat_logic[f_block[0],f_block[1]] != 1:
                 self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
         for nf_block in falling_blocks_new:
             self.mat_logic[nf_block[0],nf_block[1]] = 2
