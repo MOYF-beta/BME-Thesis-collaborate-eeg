@@ -38,7 +38,7 @@ class game_backend:
         elif 'b' in keys: # falling Block
             block_coord = data['b']
             block_coord_np = []
-            for i in range(len(block_coord)/2):
+            for i in range(len(block_coord)//2):
                 block_coord_np.append(np.array([block_coord[i*2],block_coord[i*2+1]]))
             self.callbacks['set_falling_blocks'](block_coord_np)
         else:

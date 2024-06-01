@@ -309,7 +309,7 @@ class beat_server(cmd.Cmd):
 
         def get_falling_block_coords(self,data):
             mat = np.zeros(net_config.map_size)
-            for i in range(len(data)/2):
+            for i in range(len(data)//2):
                 mat[data[i*2],data[i*2+1]] = 1
             return mat
         
