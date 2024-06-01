@@ -102,6 +102,11 @@ class Trtris_map:
                 positions.append((x, y))
         return positions
 
+    def key_cooldown(self):
+        while True:
+            self.key_ready = True
+            core.wait(net_config.update_freq)
+
     def __init__(self, map_size = net_config.map_size,win_shape = (800,800),
                  game_zone_width = 0.7, margin = 0.1) -> None:
         self.win = visual.Window(size=win_shape, winType='pyglet')
@@ -151,6 +156,9 @@ class Trtris_map:
         self.backend_ctrl_param_init()
         self.backend = game_backend(self.callbacks)
         self.game_strategy = None
+        self.key_ready = False
+        self.key_op_cooldown_thread = threading.Thread(target=self.key_cooldown)
+        self.key_op_cooldown_thread.start()
 
     def graphic_step(self): 
         map_colors = [tetris_color[self.mat_color[i, j]] 
@@ -323,7 +331,8 @@ class Trtris_map:
                     self.game_round() # 单人模式在收到停止信号之前一直进行
     
     def get_key_status(self):
-
+        if not self.key_ready:
+            return
         self.slide_direction = 0
         self.rotate_direction = 0
         self.space_pressed = False

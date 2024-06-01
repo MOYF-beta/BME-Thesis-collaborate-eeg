@@ -5,5 +5,5 @@ p2p_port = 23345
 discover_keyword = "Ciallo~(∠・ω< )⌒★"
 step_time = 0.3
 read_tip_time = 10
-update_freq = 1/20 # 30帧，下落方块同步速率
+update_freq = 1/5 # 30帧，下落方块同步速率
 map_size = (10,20)
