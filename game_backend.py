@@ -39,7 +39,7 @@ class game_backend:
             if self.game_running and self.game_mode == 'multi':
                 self.callbacks['update_multiplayer_flag']()
         
-        elif 'f' in keys:
+        if 'f' in keys:
             # 现在的思路下只是用来显示按下空格的
             self.callbacks['space_pressed']()
 
