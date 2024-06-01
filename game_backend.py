@@ -40,7 +40,7 @@ class game_backend:
             block_coord_np = []
             for i in range(len(block_coord)//2):
                 block_coord_np.append(np.array([block_coord[i*2],block_coord[i*2+1]]))
-            self.callbacks['set_falling_blocks'](block_coord_np)
+            self.callbacks['set_falling_blocks'](block_coord_np,data['t'])
         else:
             print(f"warning:unknow pack recived{data}")
         
@@ -51,8 +51,8 @@ class game_backend:
             blocks_list.append(int(coord[1]))
 
         self.net_layer.send_data_to_server({'b':blocks_list,'t':timestamp})
-        core.wait(0.05)
-        self.net_layer.send_data_to_server({'b':blocks_list,'t':timestamp})# 重发一遍
+        # core.wait(0.05)
+        # self.net_layer.send_data_to_server({'b':blocks_list,'t':timestamp})# 重发一遍
 
     def send_event_space_pressed(self):
         self.net_layer.send_data_to_server({'f':1})

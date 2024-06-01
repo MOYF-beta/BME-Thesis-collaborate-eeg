@@ -245,7 +245,13 @@ class Trtris_map:
             color = self.mat_color[f_block[0],f_block[1]]
             return [falling_blocks,x_min,x_max,y_min,y_max,color]
 
-    def set_falling_blocks(self,falling_blocks_new):
+    def set_falling_blocks(self,falling_blocks_new,timestamp):
+        if timestamp < self.game_step_count:
+            # 若发现没有更新，重发
+            falling_blocks = self._get_falling_blocks()
+            self.backend.send_falling_blocks(falling_blocks)
+            return
+        self.game_step_count = timestamp
         if len(falling_blocks_new) == 0:
             return
         while self.update_lock:
@@ -264,6 +270,7 @@ class Trtris_map:
     def block_slide(self,direction):
         if direction == 0:
             return
+        self.game_step_count = self.game_step_count + 1
         [falling_blocks,x_min,x_max,y_min,y_max,color] = self._get_falling_blocks(need_utils=True)
         if len(falling_blocks) == 0:
             self.falling_missing = True
