@@ -209,7 +209,7 @@ class Trtris_map:
         self.game_step_count += 1
         if self.is_multiplayer:
             falling_block = self._get_falling_blocks()
-            self.backend.send_falling_blocks(falling_block)
+            self.backend.send_falling_blocks(falling_block,self.game_step_count)
         else:
             self.graphic_step()
             
@@ -268,7 +268,7 @@ class Trtris_map:
                 if self.is_multiplayer:
                     for coord in falling_blocks:
                         coord[0] = coord[0] + direction
-                    self.backend.send_falling_blocks(falling_blocks)
+                    self.backend.send_falling_blocks(falling_blocks,self.game_step_count)
                 else:
                     for f_block in falling_blocks:
                         self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0
@@ -297,7 +297,7 @@ class Trtris_map:
                         if falling_mask_logic[dx,dy] == 2:
                             new_falling_blocks.append(np.array([x_min + dx, y_min+dy]))
                 if self.is_multiplayer:
-                    self.backend.send_falling_blocks(new_falling_blocks)
+                    self.backend.send_falling_blocks(new_falling_blocks,self.game_step_count)
                 else:
                     for f_block in falling_blocks:
                         self.mat_logic[f_block[0],f_block[1]] = self.mat_color[f_block[0],f_block[1]] = 0

@@ -148,6 +148,7 @@ class beat_server(cmd.Cmd):
             self.beat_thread : threading.Thread = None
             self.sync_falling_block_thread : threading.Thread = None
             self.newest_falling_blocks = np.zeros(net_config.map_size)
+            self.pack_timestamp = 0
             self.new_falling_block_flag = False
             self.about_to_sync = False
             self.sync_time = 0.005
@@ -176,9 +177,14 @@ class beat_server(cmd.Cmd):
                         # 对前端，正常渲染，收到s后先上传，然后等待收到 blocks后设置自身的falling block，然后再在逻辑上计算
                         if 'b' in data_dict: # 来自客户端的下落方块更新
                             newest_falling_blocks = self.get_falling_block_coords(data_dict['b'])
-                            if not np.array_equal(self.newest_falling_blocks,newest_falling_blocks):
+                            timestamp = data['t']
+                            if timestamp >= self.pack_timestamp and not np.array_equal(self.newest_falling_blocks,newest_falling_blocks):
                                 self.send_data_to_player_s(self.players,data)
+                                self.pack_timestamp = timestamp
                                 self.newest_falling_blocks = newest_falling_blocks
+                                core.wait(0.05)
+                                self.send_data_to_player_s(self.players,data)
+
                     except:
                         self.console.log(f"unknow msg : {data}")
             else:

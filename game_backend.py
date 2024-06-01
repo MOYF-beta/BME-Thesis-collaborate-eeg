@@ -44,7 +44,7 @@ class game_backend:
         else:
             print(f"warning:unknow pack recived{data}")
         
-    def send_falling_blocks(self,blocks_np):
+    def send_falling_blocks(self,blocks_np,timestamp):
         blocks_list = []
         for coord in blocks_np:
             blocks_list.append(int(coord[0]))
