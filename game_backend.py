@@ -31,6 +31,8 @@ class game_backend:
             # 收到来自服务器的更新节拍，给游戏更新flag打true
             if self.game_running and self.game_mode == 'multi':
                 self.callbacks['update_multiplayer_flag']()
+            if 'b' not in keys:
+                self.callbacks['set_falling_sync_flag']()
         elif 'b' in keys: # falling Block
             block_coord = data['b']
             block_coord_np = []

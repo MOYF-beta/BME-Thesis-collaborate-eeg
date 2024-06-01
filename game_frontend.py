@@ -428,7 +428,7 @@ class Trtris_map:
                 immed_graphic_update()
 
             if self.game_update_flag:
-                while not self.block_synced:
+                while not self.is_multiplayer and not self.block_synced:
                     pass
                 self.game_step()
                 self.block_synced = False
