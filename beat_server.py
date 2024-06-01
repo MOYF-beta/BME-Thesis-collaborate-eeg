@@ -177,7 +177,7 @@ class beat_server(cmd.Cmd):
                         # 对前端，正常渲染，收到s后先上传，然后等待收到 blocks后设置自身的falling block，然后再在逻辑上计算
                         if 'b' in data_dict: # 来自客户端的下落方块更新
                             newest_falling_blocks = self.get_falling_block_coords(data_dict['b'])
-                            timestamp = data['t']
+                            timestamp = data_dict['t']
                             if timestamp >= self.pack_timestamp and not np.array_equal(self.newest_falling_blocks,newest_falling_blocks):
                                 self.send_data_to_player_s(self.players,data)
                                 self.pack_timestamp = timestamp
