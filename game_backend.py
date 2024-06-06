@@ -25,21 +25,24 @@ class game_backend:
 
     def handle_game_data(self,data:dict):
         keys = data.keys()
-
-        if 'b' in keys: # falling Block
-            block_coord = data['b']
-            block_coord_np = []
-            for i in range(len(block_coord)//2):
-                block_coord_np.append(np.array([block_coord[i*2],block_coord[i*2+1]]))
-            self.callbacks['set_falling_blocks'](block_coord_np,data['t'])
         
         if 's' in keys: # S : Sync beat
             print(' ',end='')
             # 收到来自服务器的更新节拍，给游戏更新flag打true
             if self.game_running and self.game_mode == 'multi':
                 self.callbacks['update_multiplayer_flag']()
+            # if 'b' not in keys:
+            #     self.callbacks['set_falling_sync_flag']()
+        elif 'b' in keys: # falling Block
+            block_coord = data['b']
+            block_coord_np = []
+            for i in range(len(block_coord)//2):
+                block_coord_np.append(np.array([block_coord[i*2],block_coord[i*2+1]]))
+            self.callbacks['set_falling_blocks'](block_coord_np,data['t'])
+            # if 's' in keys:
+            #     self.callbacks['set_falling_sync_flag']()
         
-        if 'f' in keys:
+        elif 'f' in keys:
             # 现在的思路下只是用来显示按下空格的
             self.callbacks['space_pressed']()
 
