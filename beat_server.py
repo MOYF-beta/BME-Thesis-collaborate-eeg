@@ -152,7 +152,7 @@ class beat_server(cmd.Cmd):
             self.pack_timestamp = 0
             self.new_falling_block_flag = False
             self.about_to_sync = False
-            self.sync_time = 0.005
+            self.sync_time = 0.01
 
         def reported_ip_to_beat_server(self):
             while not self.reported_ip:
@@ -186,8 +186,6 @@ class beat_server(cmd.Cmd):
                                 self.pack_timestamp = timestamp
                                 self.newest_falling_blocks = newest_falling_blocks
                                 self.block_data = data_dict['b']
-                                core.wait(0.05)
-                                self.send_data_to_player_s(self.players,data)
 
                     except:
                         self.console.log(f"unknow msg : {data}")
