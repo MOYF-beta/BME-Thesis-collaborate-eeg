@@ -1,3 +1,6 @@
-data
+data_raw
+dataset
 media
+log
+__pycache__
 *.npz

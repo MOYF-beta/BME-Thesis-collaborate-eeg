@@ -1,3 +1,4 @@
+import os
 import struct
 import pandas as pd
 import numpy as np
@@ -29,10 +30,7 @@ def read_data_from_file(file_path):
     valid_len = min(data_array.shape[0], time_array.shape[0])
     return data_array[:valid_len, :], time_array[:valid_len]
 
-# 通道配置
-channels = ['F7', 'Oz', 'O1', 'F2', 'C3', 'T7', 'P4', 'T8']
-
-def read_and_convert_to_dataframe(file_path):
+def read_and_convert_to_dataframe(file_path,channels):
     data, time = read_data_from_file(file_path)
     df = pd.DataFrame(data, columns=channels)
     df['time'] = time
@@ -51,37 +49,34 @@ def synchronize_dataframes(df1, df2):
 
     return df1_sync, df2_sync
 
-file1 = 'co_1_2/COM3_24_06_09_15_43_49.eegbin'
-file2 = 'co_1_2/COM12_24_06_09_15_43_59.eegbin'
+def get_windows(data_dir,channels = ['F7', 'Oz', 'O1', 'F2', 'C3', 'T7', 'P4', 'T8']):
+    files = os.listdir(data_dir)
+    assert len(files)==2
+    file1,file2 = files
+    df1 = read_and_convert_to_dataframe(os.path.join(data_dir,file1),channels)
+    df2 = read_and_convert_to_dataframe(os.path.join(data_dir,file2),channels)
 
-df1 = read_and_convert_to_dataframe(file1)
-df2 = read_and_convert_to_dataframe(file2)
+    df1_sync, df2_sync = synchronize_dataframes(df1, df2)
 
-df1_sync, df2_sync = synchronize_dataframes(df1, df2)
+    # 删除 time 列
+    df1_sync = df1_sync.drop(columns=['time'])
+    df2_sync = df2_sync.drop(columns=['time'])
 
-# 删除 time 列
-df1_sync = df1_sync.drop(columns=['time'])
-df2_sync = df2_sync.drop(columns=['time'])
+    # 设置采样率和滑动窗口参数
+    sample_rate = 250  # Hz
+    window_size = 10 * sample_rate  # 10秒窗口
+    step_size = sample_rate  # 每1秒移动一次窗口
 
-# 设置采样率和滑动窗口参数
-sample_rate = 250  # Hz
-window_size = 10 * sample_rate  # 10秒窗口
-step_size = sample_rate  # 每1秒移动一次窗口
+    def sliding_window(dataframe, window_size, step_size):
+        data = dataframe.values
+        windows = []
+        for start in range(0, len(data) - window_size + 1, step_size):
+            window = data[start:start + window_size]
+            windows.append(window)
+        return windows
 
-def sliding_window(dataframe, window_size, step_size):
-    data = dataframe.values
-    windows = []
-    for start in range(0, len(data) - window_size + 1, step_size):
-        window = data[start:start + window_size]
-        windows.append(window)
-    return windows
+    # 生成滑动窗口的列表
+    windows1 = sliding_window(df1_sync, window_size, step_size)
+    windows2 = sliding_window(df2_sync, window_size, step_size)
 
-# 生成滑动窗口的列表
-windows1 = sliding_window(df1_sync, window_size, step_size)
-windows2 = sliding_window(df2_sync, window_size, step_size)
-
-# 输出部分窗口数据以检查
-print(np.array(windows1).shape)
-print(np.array(windows2).shape)
-
-np.savez('./windows', windows1=windows1, windows2=windows2)
+    return windows1,windows2

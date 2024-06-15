@@ -1,7 +1,9 @@
+import os
 import numpy as np
 from scipy.signal import welch
 from scipy.signal import hilbert
-from numba import jit
+
+from get_windows_from_eegbin import get_windows
 
 # 定义频段
 freq_bands = {
@@ -11,13 +13,6 @@ freq_bands = {
     'beta': (13, 30),
     'gamma': (30, 100)
 }
-
-# 读取数据
-def load_windows_from_file(file_path):
-    loaded_data = np.load(file_path)
-    windows1 = loaded_data['windows1']
-    windows2 = loaded_data['windows2']
-    return windows1, windows2
 
 def normalize(data):
     return (data - np.mean(data, axis=0)) / np.std(data, axis=0)
@@ -50,8 +45,8 @@ def compute_plv(data1, data2):
     return plv_matrix
 
 # 主函数
-def process_windows(file_path, sample_rate):
-    windows1, windows2 = load_windows_from_file(file_path)
+def process_windows(data_dir, sample_rate):
+    windows1, windows2 = get_windows(data_dir)
 
     all_features = []
 
@@ -74,22 +69,25 @@ def process_windows(file_path, sample_rate):
 
     return all_features
 
-file_path = 'windows.npz'
-output_path = 'features.npz'
-sample_rate = 250  # Hz
-features = process_windows(file_path, sample_rate)
+if __name__ == '__main__':
+    sample_rate = 250  # Hz
+    data_raw_path = './data_raw'
+    output_path = './dataset'
+    for exp in os.listdir(data_raw_path):
+        features = process_windows(os.path.join(data_raw_path,exp), sample_rate)
 
-# 输出检查
-for feature in features[:3]:
-    print(f"Power1: {feature['power1']}")
-    print(f"Power2: {feature['power2']}")
-    print(f"PLV Matrix Shape: {feature['plv_matrix'].shape}")
+        # 访问数据的例子
+        for feature in features[:3]:
+            print(f"Power1: {feature['power1']}") #5*8
+            print(f"Power2: {feature['power2']}") #5*8
+            print(f"PLV Matrix Shape: {feature['plv_matrix'].shape}") # 16*16
 
-power1_values = [feature['power1'] for feature in features]
-power2_values = [feature['power2'] for feature in features]
-plv_matrices = [feature['plv_matrix'] for feature in features]
-
-np.savez(output_path, 
-         power1_values=power1_values, 
-         power2_values=power2_values, 
-         plv_matrices=plv_matrices)
+        # 保存数据
+        power1_values = [feature['power1'] for feature in features]
+        power2_values = [feature['power2'] for feature in features]
+        plv_matrices = [feature['plv_matrix'] for feature in features]
+        
+        np.savez(os.path.join(output_path,exp), 
+                power1_values=power1_values, 
+                power2_values=power2_values, 
+                plv_matrices=plv_matrices)
