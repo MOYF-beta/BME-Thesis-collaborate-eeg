@@ -2,5 +2,6 @@ data_raw
 dataset
 media
 log
+runs
 __pycache__
 *.npz

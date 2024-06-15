@@ -15,7 +15,11 @@ freq_bands = {
 }
 
 def normalize(data):
-    return (data - np.mean(data, axis=0)) / np.std(data, axis=0)
+    mean = np.mean(data, axis=0)
+    std = np.std(data, axis=0)
+    std[std == 0] = 1  # 避免除零错误
+    return (data - mean) / std
+
 
 def compute_band_power(data, sample_rate):
     n_channel = data.shape[1]

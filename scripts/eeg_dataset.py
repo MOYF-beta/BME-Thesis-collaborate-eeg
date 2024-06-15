@@ -21,7 +21,7 @@ class EEG_Dataset(Dataset):
             power1_values = data['power1_values']
             power2_values = data['power2_values']
             plv_matrices = data['plv_matrices']
-            
+            nan_data = 0
             if 'co' in file_name:
                 y = torch.tensor([1, 0], dtype=torch.float32).to(self.device)
                 co_count += len(power1_values)
@@ -40,7 +40,13 @@ class EEG_Dataset(Dataset):
                 band_power_tensor = torch.tensor(band_power, dtype=torch.float32).to(self.device)
                 plv_matrix_tensor = torch.tensor(plv_matrix, dtype=torch.float32).to(self.device)
                 
-                self.data_list.append(((band_power_tensor, plv_matrix_tensor), y))
+                if not torch.any(torch.isnan(band_power_tensor)) and not torch.any(torch.isnan(plv_matrix_tensor)):
+                    self.data_list.append(((band_power_tensor, plv_matrix_tensor), y))
+                else:
+                    nan_data = nan_data + 1
+            
+            if nan_data != 0:
+                print(f'warning:{nan_data} data point is nan')
         
         print(f"Loaded files: {file_list}")
         print(f"Total entries: {len(self.data_list)}")
