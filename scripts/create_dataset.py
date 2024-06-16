@@ -81,10 +81,10 @@ if __name__ == '__main__':
         features = process_windows(os.path.join(data_raw_path,exp), sample_rate)
 
         # 访问数据的例子
-        for feature in features[:3]:
-            print(f"Power1: {feature['power1']}") #5*8
-            print(f"Power2: {feature['power2']}") #5*8
-            print(f"PLV Matrix Shape: {feature['plv_matrix'].shape}") # 16*16
+        # for feature in features[:3]:
+        #     print(f"Power1: {feature['power1']}") #5*8
+        #     print(f"Power2: {feature['power2']}") #5*8
+        #     print(f"PLV Matrix Shape: {feature['plv_matrix'].shape}") # 16*16
 
         # 保存数据
         power1_values = [feature['power1'] for feature in features]

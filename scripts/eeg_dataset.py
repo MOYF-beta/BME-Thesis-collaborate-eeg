@@ -4,10 +4,12 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 class EEG_Dataset(Dataset):
-    def __init__(self, path='./dataset'):
+    def __init__(self, path='./dataset',dispose = 0):
         self.data_list = []
+        self.dispose = dispose
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.load_data(path)
+        
         
     def load_data(self, path):
         file_list = [f for f in os.listdir(path) if f.endswith('.npz')]
@@ -41,7 +43,8 @@ class EEG_Dataset(Dataset):
                 plv_matrix_tensor = torch.tensor(plv_matrix, dtype=torch.float32).to(self.device)
                 
                 if not torch.any(torch.isnan(band_power_tensor)) and not torch.any(torch.isnan(plv_matrix_tensor)):
-                    self.data_list.append(((band_power_tensor, plv_matrix_tensor), y))
+                    if np.random.uniform(0,1) >= self.dispose:
+                        self.data_list.append(((band_power_tensor, plv_matrix_tensor), y))
                 else:
                     nan_data = nan_data + 1
             
