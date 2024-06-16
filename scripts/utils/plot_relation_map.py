@@ -21,7 +21,7 @@ def plot_relation_map(corr:np.array,chs:list[str]):
     edges_2_2 = []
     edges_1_2 = []
     for i in range(0,n_ch):
-        for j in range(i+1,n_ch):
+        for j in range(i,n_ch):
             edge = (f'{chs[i]} 1', f'{chs[j]} 1')
             G.add_edge(edge[0],edge[1], weight=(corr[i, j]+corr[j, i])/2)
             edges_1_1.append(edge)
