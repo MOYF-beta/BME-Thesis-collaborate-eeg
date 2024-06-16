@@ -4,15 +4,18 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 class EEG_Dataset(Dataset):
-    def __init__(self, path='./dataset',dispose = 0):
+    def __init__(self, path='./dataset',dispose = 0,specific_file = None):
         self.data_list = []
         self.dispose = dispose
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.specific_file = specific_file
         self.load_data(path)
+        
         
         
     def load_data(self, path):
         file_list = [f for f in os.listdir(path) if f.endswith('.npz')]
+        file_list = file_list if self.specific_file is None else self.specific_file
         co_count = 0
         vs_count = 0
         
@@ -25,10 +28,10 @@ class EEG_Dataset(Dataset):
             plv_matrices = data['plv_matrices']
             nan_data = 0
             if 'co' in file_name:
-                y = torch.tensor([1, 0], dtype=torch.float32).to(self.device)
+                y = torch.tensor([0.6, 0.4], dtype=torch.float32).to(self.device)
                 co_count += len(power1_values)
             elif 'vs' in file_name:
-                y = torch.tensor([0, 1], dtype=torch.float32).to(self.device)
+                y = torch.tensor([0.4, 0.6], dtype=torch.float32).to(self.device)
                 vs_count += len(power1_values)
             else:
                 assert False, "数据集命名不合法"

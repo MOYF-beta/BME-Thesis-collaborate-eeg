@@ -37,6 +37,7 @@ def train(model, train_loader, val_loader):
                 loss = loss_fn(predictions, y)
             if not torch.any(torch.isnan(loss)):
                 scaler.scale(loss).backward()  # 使用scaler进行反向传播
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 scaler.step(optimizer)  # 使用scaler进行优化步骤
                 scaler.update()  # 更新scaler
             else:
@@ -98,8 +99,8 @@ def evaluate(model, val_loader):
 
 def main():
 
-    train_dataset = EEG_Dataset(path='./dataset',dispose = 0.9)
-    val_dataset = EEG_Dataset(path='./dataset')
+    train_dataset = EEG_Dataset(path='./dataset')#,specific_file=['co_1_2.npz','vs2_1.npz'])
+    val_dataset = EEG_Dataset(path='./dataset')#,specific_file=['co1_1.npz','vs1_1.npz'])
 
     train_batch_size = 5
     train_loader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
