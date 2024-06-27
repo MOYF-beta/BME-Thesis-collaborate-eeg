@@ -5,7 +5,8 @@ import torch.nn as nn
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
-def train(model, train_loader, val_loader, dispose_value,EPOCHS,LR,enable_PSD,enable_PLV,CHECKPOINT_PATH = './log'):
+def train(model, train_loader, val_loader, dispose_value,EPOCHS,LR,enable_PSD,enable_PLV
+          ,CHECKPOINT_PATH = './log',tensorboard_en = True):
     os.makedirs(CHECKPOINT_PATH, exist_ok=True)
     model.train()  # 设置模型为训练模式
     optimizer = Adam(model.parameters(), lr=LR)
@@ -13,11 +14,10 @@ def train(model, train_loader, val_loader, dispose_value,EPOCHS,LR,enable_PSD,en
     scaler = torch.cuda.amp.GradScaler()  # 初始化GradScaler
     
     # 初始化TensorBoard
-    writer = SummaryWriter(log_dir=os.path.join(CHECKPOINT_PATH, 
+    if tensorboard_en:
+        writer = SummaryWriter(log_dir=os.path.join(CHECKPOINT_PATH, 
                                                 f'dispose_{dispose_value}_PSD_{enable_PSD}_PLV_{enable_PLV}'))
-    
-    best_val_acc = 0.0  # 用于记录最佳模型的验证精度
-    hparams = { # 保存一些超参数
+        hparams = { # 保存一些超参数
         'dispose': dispose_value,
         'enable_PSD': 1 if enable_PSD else 0,
         'enable_PLV': 1 if enable_PLV else 0,
@@ -25,8 +25,9 @@ def train(model, train_loader, val_loader, dispose_value,EPOCHS,LR,enable_PSD,en
         'epochs': EPOCHS,
         'batch_size': train_loader.batch_size,
         }
-    writer.add_hparams(hparams, {})
-    
+        writer.add_hparams(hparams, {})
+
+    best_val_acc = 0.0  # 用于记录最佳模型的验证精度
     progress_epoch = tqdm(range(EPOCHS), desc=f"train progress", position=0)
     for epoch in progress_epoch:
         progress_train = tqdm(train_loader, desc=f"epoch progress", position=1, leave=False)
@@ -51,9 +52,10 @@ def train(model, train_loader, val_loader, dispose_value,EPOCHS,LR,enable_PSD,en
         progress_epoch.set_postfix(loss=float(val_loss), acc=val_acc)
         
         # 记录训练和验证损失及精度到TensorBoard
-        writer.add_scalar('Loss/train', loss.item(), epoch)
-        writer.add_scalar('Loss/val', val_loss, epoch)
-        writer.add_scalar('Accuracy/val', val_acc, epoch)
+        if tensorboard_en:
+            writer.add_scalar('Loss/train', loss.item(), epoch)
+            writer.add_scalar('Loss/val', val_loss, epoch)
+            writer.add_scalar('Accuracy/val', val_acc, epoch)
         
         # 保存最佳模型
         if val_acc > best_val_acc:
@@ -70,8 +72,9 @@ def train(model, train_loader, val_loader, dispose_value,EPOCHS,LR,enable_PSD,en
             'LR': LR
         }
         torch.save(checkpoint, os.path.join(CHECKPOINT_PATH, f'latest_checkpoint_dispose_{dispose_value}.pth'))
-    
-    writer.close()  # 关闭TensorBoard
+    if tensorboard_en:
+        writer.close()  # 关闭TensorBoard
+    return best_val_acc
 
 def evaluate(model, val_loader):
     model.eval()  # 设置模型为评估模式
