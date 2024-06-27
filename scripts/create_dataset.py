@@ -73,25 +73,34 @@ def process_windows(data_dir, sample_rate):
 
     return all_features
 
+from multiprocessing import Pool, cpu_count
+
+def process_experiment(exp, data_raw_path, sample_rate, output_path):
+    features = process_windows(os.path.join(data_raw_path, exp), sample_rate)
+
+    # 访问数据的例子
+    # for feature in features[:3]:
+    #     print(f"Power1: {feature['power1']}") #5*8
+    #     print(f"Power2: {feature['power2']}") #5*8
+    #     print(f"PLV Matrix Shape: {feature['plv_matrix'].shape}") # 16*16
+
+    # 保存数据
+    power1_values = [feature['power1'] for feature in features]
+    power2_values = [feature['power2'] for feature in features]
+    plv_matrices = [feature['plv_matrix'] for feature in features]
+
+    np.savez(os.path.join(output_path, exp),
+             power1_values=power1_values,
+             power2_values=power2_values,
+             plv_matrices=plv_matrices)
+
 if __name__ == '__main__':
     sample_rate = 250  # Hz
     data_raw_path = './data_raw'
     output_path = './dataset'
-    for exp in os.listdir(data_raw_path):
-        features = process_windows(os.path.join(data_raw_path,exp), sample_rate)
-
-        # 访问数据的例子
-        # for feature in features[:3]:
-        #     print(f"Power1: {feature['power1']}") #5*8
-        #     print(f"Power2: {feature['power2']}") #5*8
-        #     print(f"PLV Matrix Shape: {feature['plv_matrix'].shape}") # 16*16
-
-        # 保存数据
-        power1_values = [feature['power1'] for feature in features]
-        power2_values = [feature['power2'] for feature in features]
-        plv_matrices = [feature['plv_matrix'] for feature in features]
-        
-        np.savez(os.path.join(output_path,exp), 
-                power1_values=power1_values, 
-                power2_values=power2_values, 
-                plv_matrices=plv_matrices)
+    
+    experiments = os.listdir(data_raw_path)
+    
+    # 设置多进程池，使用所有可用CPU
+    with Pool(cpu_count()) as pool:
+        pool.starmap(process_experiment, [(exp, data_raw_path, sample_rate, output_path) for exp in experiments])

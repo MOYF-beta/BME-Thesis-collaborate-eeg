@@ -1,30 +1,32 @@
 import os
-from torch.utils.data import DataLoader
 import torch
 from torch.optim import Adam
 import torch.nn as nn
 from tqdm import tqdm
-from eeg_dataset import EEG_Dataset
-from model import Model,device
 from torch.utils.tensorboard import SummaryWriter
 
-EPOCHS = 200
-LR = 1e-3
-CHECKPOINT_PATH = './log'
-os.makedirs(CHECKPOINT_PATH,exist_ok=True)
-
-def train(model, train_loader, val_loader):
-    global LR
+def train(model, train_loader, val_loader, dispose_value,EPOCHS,LR,enable_PSD,enable_PLV,CHECKPOINT_PATH = './log'):
+    os.makedirs(CHECKPOINT_PATH, exist_ok=True)
     model.train()  # 设置模型为训练模式
     optimizer = Adam(model.parameters(), lr=LR)
     loss_fn = nn.CrossEntropyLoss()
     scaler = torch.cuda.amp.GradScaler()  # 初始化GradScaler
     
     # 初始化TensorBoard
-    writer = SummaryWriter()
+    writer = SummaryWriter(log_dir=os.path.join(CHECKPOINT_PATH, 
+                                                f'dispose_{dispose_value}_PSD_{enable_PSD}_PLV_{enable_PLV}'))
     
     best_val_acc = 0.0  # 用于记录最佳模型的验证精度
-
+    hparams = { # 保存一些超参数
+        'dispose': dispose_value,
+        'enable_PSD': 1 if enable_PSD else 0,
+        'enable_PLV': 1 if enable_PLV else 0,
+        'lr': LR,
+        'epochs': EPOCHS,
+        'batch_size': train_loader.batch_size,
+        }
+    writer.add_hparams(hparams, {})
+    
     progress_epoch = tqdm(range(EPOCHS), desc=f"train progress", position=0)
     for epoch in progress_epoch:
         progress_train = tqdm(train_loader, desc=f"epoch progress", position=1, leave=False)
@@ -56,7 +58,7 @@ def train(model, train_loader, val_loader):
         # 保存最佳模型
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, 'best_model.pth'))
+            torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f'best_model_dispose_{dispose_value}.pth'))
         
         # 保存当前模型及优化器状态，以便恢复训练
         checkpoint = {
@@ -67,7 +69,7 @@ def train(model, train_loader, val_loader):
             'best_val_acc': best_val_acc,
             'LR': LR
         }
-        torch.save(checkpoint, os.path.join(CHECKPOINT_PATH, 'latest_checkpoint.pth'))
+        torch.save(checkpoint, os.path.join(CHECKPOINT_PATH, f'latest_checkpoint_dispose_{dispose_value}.pth'))
     
     writer.close()  # 关闭TensorBoard
 
@@ -97,17 +99,3 @@ def evaluate(model, val_loader):
     accuracy = correct / total
     return average_loss, accuracy
 
-def main():
-
-    train_dataset = EEG_Dataset(path='./dataset')#,specific_file=['co_1_2.npz','vs2_1.npz'])
-    val_dataset = EEG_Dataset(path='./dataset')#,specific_file=['co1_1.npz','vs1_1.npz'])
-
-    train_batch_size = 5
-    train_loader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=20, shuffle=False)
-    m = Model(8,5).to(device)
-    train(m,train_loader,val_loader)
-
-
-if __name__ == '__main__':
-    main()

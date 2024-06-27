@@ -26,6 +26,7 @@ class EEG_Dataset(Dataset):
             power1_values = data['power1_values']
             power2_values = data['power2_values']
             plv_matrices = data['plv_matrices']
+            
             nan_data = 0
             if 'co' in file_name:
                 y = torch.tensor([0.6, 0.4], dtype=torch.float32).to(self.device)
@@ -35,21 +36,28 @@ class EEG_Dataset(Dataset):
                 vs_count += len(power1_values)
             else:
                 assert False, "数据集命名不合法"
-                
-            for i in range(len(power1_values)):
-                power1 = power1_values[i]
-                power2 = power2_values[i]
-                plv_matrix = plv_matrices[i]
-                
+            
+            # Combine all data into a single list for shuffling
+            combined_data = list(zip(power1_values, power2_values, plv_matrices))
+            
+            # Randomly shuffle the combined data
+            np.random.shuffle(combined_data)
+            
+            # Calculate the number of data points to retain
+            retain_count = int((1 - self.dispose) * len(combined_data))
+            
+            # Retain the required number of data points
+            retained_data = combined_data[:retain_count]
+            
+            for power1, power2, plv_matrix in retained_data:
                 band_power = np.concatenate((power1, power2), axis=1).T  # [16, 5]
                 band_power_tensor = torch.tensor(band_power, dtype=torch.float32).to(self.device)
                 plv_matrix_tensor = torch.tensor(plv_matrix, dtype=torch.float32).to(self.device)
                 
                 if not torch.any(torch.isnan(band_power_tensor)) and not torch.any(torch.isnan(plv_matrix_tensor)):
-                    if np.random.uniform(0,1) >= self.dispose:
-                        self.data_list.append(((band_power_tensor, plv_matrix_tensor), y))
+                    self.data_list.append(((band_power_tensor, plv_matrix_tensor), y))
                 else:
-                    nan_data = nan_data + 1
+                    nan_data += 1
             
             if nan_data != 0:
                 print(f'warning:{nan_data} data point is nan')
