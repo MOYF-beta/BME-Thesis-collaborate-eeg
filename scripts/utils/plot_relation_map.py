@@ -1,6 +1,31 @@
 import numpy as np
 import networkx as nx
+import seaborn as sns
 import matplotlib.pyplot as plt
+
+def plot_weighted_heatmap(A, B,xticklabels, yticklabels):
+    # Define the figure and axis
+    fig, ax = plt.subplots(figsize=(12, 10))
+
+    # Create the heatmap for matrix A
+    sns.heatmap(A, annot=False, cmap="rocket_r", cbar=True, ax=ax,xticklabels=xticklabels, yticklabels=xticklabels)
+
+    # Annotate each cell with values from A and B in the format 'val_A(val_B)'
+    for i in range(A.shape[0]):
+        for j in range(A.shape[1]):
+            value = A[i, j]
+            weight = B[i, j]
+            size = 8 + (weight * 12)  # Adjust font size based on weight
+            ax.text(j + 0.5, i + 0.5, f'{value:.2f}\n({weight:.2f})', ha='center', va='center', fontsize=size, fontweight='bold' if weight > 0.5 else 'normal')
+
+    # Adjust the axis
+    ax.set_xticks(np.arange(A.shape[1]) + 0.5)
+    ax.set_yticks(np.arange(A.shape[0]) + 0.5)
+    ax.set_xticklabels(np.arange(1, A.shape[1] + 1))
+    ax.set_yticklabels(np.arange(1, A.shape[0] + 1))
+
+    plt.title("Heatmap of Matrix A with Annotated Weights from Matrix B")
+    plt.show()
 
 def plot_relation_map(corr:np.array,chs:list[str]):
 
@@ -58,7 +83,7 @@ def plot_relation_map(corr:np.array,chs:list[str]):
             # 找到边在 edges 中的位置
             edge_data = next(d for u, v, d in edges if (u, v) == edge or (v, u) == edge)
             alpha = (edge_data['weight'] / max_weight)*0.6 + 0.2  # 计算透明度
-            bold = 10 / (1 + np.exp(-7 * (edge_data['weight'] - 0.5)))  # 获取边的粗细
+            bold = (edge_data['weight'] * 5)**2  # 获取边的粗细
             nx.draw_networkx_edges(G, pos, edgelist=[edge], width=bold, edge_color=color, alpha=alpha)
         
     plt.show()

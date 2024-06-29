@@ -72,8 +72,20 @@ def main_test_cross_ds():
     
     print(exps)
 
-    
+def main_normal():
+    EPOCHS = 5
+    val_dataset = EEG_Dataset(path='./dataset',symmetry=True)
+    train_dataset = EEG_Dataset(path='./dataset', dispose=0,symmetry=True)
+    train_loader = DataLoader(train_dataset, batch_size=20, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=500, shuffle=False)
+        
+    # model = Model(8, 5, PSD_en=True, PLV_en=True).to(device)
+    # train(model, train_loader, val_loader, 0,EPOCHS,LR,True,True)
+    model = Model(8, 5, PSD_en=False, PLV_en=True).to(device)
+    train(model, train_loader, val_loader, 0,EPOCHS,LR,False,True)
+    model = Model(8, 5, PSD_en=True, PLV_en=False).to(device)
+    train(model, train_loader, val_loader, 0,EPOCHS,LR,True,False)
 
 if __name__ == '__main__':
 
-    main_test_cross_ds()
+    main_normal()

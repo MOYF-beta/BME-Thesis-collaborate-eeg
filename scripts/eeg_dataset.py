@@ -4,12 +4,14 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 class EEG_Dataset(Dataset):
-    def __init__(self, path='./dataset',dispose = 0,specific_file = None):
+    def __init__(self, path='./dataset',dispose = 0,specific_file = None,symmetry = False):
         self.data_list = []
         self.dispose = dispose
+        self.symmetry = symmetry
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.specific_file = specific_file
         self.load_data(path)
+        
         
         
         
@@ -39,6 +41,8 @@ class EEG_Dataset(Dataset):
             
             # Combine all data into a single list for shuffling
             combined_data = list(zip(power1_values, power2_values, plv_matrices))
+            if self.symmetry:
+                combined_data = combined_data +  list(zip(power2_values, power1_values, plv_matrices.transpose(0,2,1)))
             
             # Randomly shuffle the combined data
             np.random.shuffle(combined_data)

@@ -60,7 +60,7 @@ def train(model, train_loader, val_loader, dispose_value,EPOCHS,LR,enable_PSD,en
         # 保存最佳模型
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f'best_model_dispose_{dispose_value}.pth'))
+            torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f'best_dispose_{dispose_value}_PSD_{enable_PSD}_PLV_{enable_PLV}.pth'))
         
         # 保存当前模型及优化器状态，以便恢复训练
         checkpoint = {
@@ -71,7 +71,7 @@ def train(model, train_loader, val_loader, dispose_value,EPOCHS,LR,enable_PSD,en
             'best_val_acc': best_val_acc,
             'LR': LR
         }
-        torch.save(checkpoint, os.path.join(CHECKPOINT_PATH, f'latest_checkpoint_dispose_{dispose_value}.pth'))
+        torch.save(checkpoint, os.path.join(CHECKPOINT_PATH, f'latestdispose_{dispose_value}_PSD_{enable_PSD}_PLV_{enable_PLV}.pth'))
     if tensorboard_en:
         writer.close()  # 关闭TensorBoard
     return best_val_acc
